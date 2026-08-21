@@ -47,6 +47,20 @@ More information soon.
 - Spoof some `Android System Properties`
 - Spoof the sus `'su'` tcontext shown in avc log
 
+## ADB Fix Fork
+
+This fork keeps BRENE's original property spoofing while making the Android
+settings switches responsible for their related ADB state:
+
+- **USB Debugging** preserves `adbd` and USB ADB gadget properties when enabled.
+- **Wireless Debugging** preserves the ADB TLS port when enabled.
+- **ADB Root** remains managed by KernelSU; this fork keeps BRENE's original
+  `service.adb.root` behavior.
+
+The fork checks upstream releases daily. Clean upstream merges are published
+automatically as `<upstream-tag>-adbfix` releases. If upstream changes conflict
+with the ADB fix, the workflow stops without publishing a release.
+
 ## Credits
 
 - [`Magisk`](https://github.com/topjohnwu/Magisk)
