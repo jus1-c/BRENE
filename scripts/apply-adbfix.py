@@ -41,7 +41,8 @@ RESET_PROP_WITH_LOG = '''resetprop_n() {
 }
 
 adb_spoof_log() {
-\techo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "${PERSISTENT_DIR}/adb-spoof.log"
+\t[[ "${config_brene_logs}" == "1" ]] || return
+\techo "[$(date '+%Y-%m-%d %H:%M:%S')] [ADB] $*" >> "${PERSISTENT_DIR}/logs.txt"
 }
 '''
 OLD_ADB = '''\tresetprop -d service.adb.root

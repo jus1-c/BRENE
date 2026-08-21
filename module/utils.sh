@@ -39,7 +39,8 @@ resetprop_n() {
 }
 
 adb_spoof_log() {
-	echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "${PERSISTENT_DIR}/adb-spoof.log"
+	[[ "${config_brene_logs}" == "1" ]] || return
+	echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ADB] $*" >> "${PERSISTENT_DIR}/logs.txt"
 }
 
 if_prop_value_exits_resetprop_n() {
