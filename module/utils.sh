@@ -38,22 +38,8 @@ resetprop_n() {
 	resetprop -n "$1" "$2"
 }
 
-restore_adb_debugging_properties() {
-	if [[ "${config_usb_debugging}" == "1" ]]; then
-		resetprop -d "init.svc.adbd"
-		resetprop -d "init.svc_debug_pid.adbd"
-		resetprop -d "persist.sys.usb.config"
-		settings put global adb_enabled 0
-		sleep 1
-		settings put global adb_enabled 1
-		setprop persist.sys.usb.config "mtp,adb"
-		setprop sys.usb.config "mtp,adb"
-		svc usb resetUsbGadget
-	fi
-
-	if [[ "${config_wireless_debugging}" == "1" ]]; then
-		settings put global adb_wifi_enabled 1
-	fi
+adb_spoof_log() {
+	echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "${PERSISTENT_DIR}/adb-spoof.log"
 }
 
 if_prop_value_exits_resetprop_n() {
@@ -74,12 +60,24 @@ if_prop_value_exits_resetprop_n() {
 # }
 
 spoof_android_system_properties() {
-	# Keep USB ADB's service state and function configuration real when the
-	# Android Settings USB Debugging switch is enabled.
-	if [[ "${config_usb_debugging}" != "1" ]]; then
+	# Do not spoof ADB or USB lifecycle props. Android's USB framework and
+	# Gadget HAL must remain the sole owner of adbd and FunctionFS state.
+	if [[ "${config_usb_debugging}" == "1" ]]; then
+		adb_spoof_log "usb=preserve init=$(getprop init.svc.adbd) usb=$(getprop sys.usb.config)"
+	else
+		adb_spoof_log "usb=spoof before init=$(getprop init.svc.adbd) usb=$(getprop persist.sys.usb.config)"
 		resetprop_n "init.svc.adbd" "stopped"
 		resetprop_n "init.svc_debug_pid.adbd" ""
 		resetprop_n "persist.sys.usb.config" "mtp"
+		adb_spoof_log "usb=spoof after init=$(getprop init.svc.adbd) usb=$(getprop persist.sys.usb.config)"
+	fi
+
+	if [[ "${config_wireless_debugging}" == "1" ]]; then
+		adb_spoof_log "wireless=preserve tls=$(getprop service.adb.tls.port)"
+	else
+		adb_spoof_log "wireless=spoof before tls=$(getprop service.adb.tls.port)"
+		resetprop -d "service.adb.tcp.port"
+		adb_spoof_log "wireless=spoof after tls=$(getprop service.adb.tls.port)"
 	fi
 	resetprop_n "ro.adb.secure" "1"
 	resetprop_n "ro.crypto.state" "encrypted"
@@ -159,14 +157,6 @@ spoof_android_system_properties() {
 	resetprop -d "ro.boot.verifiedbooterror"
 	resetprop -d "ro.boot.verifyerrorpart"
 	resetprop -d "crashrecovery.rescue_boot_count"
-
-	resetprop -d service.adb.root
-
-	# Preserve the wireless TLS port while the Android Settings Wireless
-	# Debugging switch is enabled.
-	if [[ "${config_wireless_debugging}" != "1" ]]; then
-		resetprop -d service.adb.tcp.port
-	fi
 
 	# https://android.googlesource.com/platform/frameworks/base/+/bab174bf0883cbc5039a2860a1af706a56fe6ca0%5E%21/
 	if [[ "$(resetprop ro.build.version.sdk)" -ge "36" ]]; then

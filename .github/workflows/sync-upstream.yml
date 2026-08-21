@@ -105,7 +105,8 @@ jobs:
           python3 -m py_compile scripts/apply-adbfix.py
           grep -q 'config_usb_debugging' module/utils.sh
           grep -q 'config_wireless_debugging' module/utils.sh
-          grep -q 'resetprop -d service.adb.root' module/utils.sh
+          grep -q 'adb_spoof.log' module/utils.sh
+          ! grep -q 'svc usb\|setprop sys.usb' module/utils.sh
           test -f module/module.prop
           test -f update.json
           unzip -t "${{ steps.package.outputs.asset }}"
