@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 UTILS = ROOT / "module" / "utils.sh"
 WEBUI = ROOT / "module" / "webroot" / "script.js"
 WEBUI_HTML = ROOT / "module" / "webroot" / "index.html"
+BOOT_COMPLETED = ROOT / "module" / "boot-completed.sh"
 
 OLD_USB = '''\tresetprop_n "init.svc.adbd" "stopped"
 \tresetprop_n "init.svc_debug_pid.adbd" ""
@@ -21,6 +22,32 @@ NEW_USB = '''\t# Keep USB ADB's service state and function configuration real wh
 \t\tresetprop_n "init.svc_debug_pid.adbd" ""
 \t\tresetprop_n "persist.sys.usb.config" "mtp"
 \tfi
+'''
+RESET_PROP = '''resetprop_n() {
+\tresetprop -n "$1" "$2"
+}
+'''
+RESTORE_ADB = '''resetprop_n() {
+\tresetprop -n "$1" "$2"
+}
+
+restore_adb_debugging_properties() {
+\tif [[ "${config_usb_debugging}" == "1" ]]; then
+\t\tresetprop -d "init.svc.adbd"
+\t\tresetprop -d "init.svc_debug_pid.adbd"
+\t\tresetprop -d "persist.sys.usb.config"
+\t\tsettings put global adb_enabled 0
+\t\tsleep 1
+\t\tsettings put global adb_enabled 1
+\t\tsetprop persist.sys.usb.config "mtp,adb"
+\t\tsetprop sys.usb.config "mtp,adb"
+\t\tsvc usb resetUsbGadget
+\tfi
+
+\tif [[ "${config_wireless_debugging}" == "1" ]]; then
+\t\tsettings put global adb_wifi_enabled 1
+\tfi
+}
 '''
 OLD_ADB = '''\tresetprop -d service.adb.root
 \tresetprop -d service.adb.tcp.port
@@ -63,6 +90,28 @@ NEW_WIRELESS_ACTION = '''\t{
 \t\t\t),
 \t},
 '''
+OLD_BOOT_ADB = '''# Wireless Debugging
+if [[ "${config_wireless_debugging}" == "1" ]]; then
+\tsettings put global adb_wifi_enabled 1
+elif [[ "${config_wireless_debugging}" == "0" ]]; then
+\tsettings put global adb_wifi_enabled 0
+fi
+
+# SELinux Enforcing
+'''
+NEW_BOOT_ADB = '''# Wireless Debugging
+if [[ "${config_wireless_debugging}" == "1" ]]; then
+\tsettings put global adb_wifi_enabled 1
+elif [[ "${config_wireless_debugging}" == "0" ]]; then
+\tsettings put global adb_wifi_enabled 0
+fi
+
+# Clear stale ADB spoof props left by older BRENE versions, then let Android
+# rebuild the USB gadget with the selected USB Debugging state.
+restore_adb_debugging_properties
+
+# SELinux Enforcing
+'''
 OLD_USB_SUBTITLE = "Enable or disable USB debugging"
 NEW_USB_SUBTITLE = "Also preserves USB ADB from system property spoofing"
 OLD_WIRELESS_SUBTITLE = "Enable or disable wireless debugging"
@@ -79,6 +128,7 @@ def replace_once(source: str, old: str, new: str, label: str) -> str:
 
 def main() -> None:
     source = UTILS.read_text()
+    source = replace_once(source, RESET_PROP, RESTORE_ADB, "ADB restore helper")
     source = replace_once(source, OLD_USB, NEW_USB, "USB Debugging mapping")
     source = replace_once(source, OLD_ADB, NEW_ADB, "Wireless Debugging mapping")
     UTILS.write_text(source)
@@ -102,6 +152,10 @@ def main() -> None:
         "Wireless Debugging subtitle",
     )
     WEBUI_HTML.write_text(source)
+
+    source = BOOT_COMPLETED.read_text()
+    source = replace_once(source, OLD_BOOT_ADB, NEW_BOOT_ADB, "boot-time ADB restore")
+    BOOT_COMPLETED.write_text(source)
 
 
 if __name__ == "__main__":

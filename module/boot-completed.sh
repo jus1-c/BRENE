@@ -60,6 +60,10 @@ elif [[ "${config_wireless_debugging}" == "0" ]]; then
 	settings put global adb_wifi_enabled 0
 fi
 
+# Clear stale ADB spoof props left by older BRENE versions, then let Android
+# rebuild the USB gadget with the selected USB Debugging state.
+restore_adb_debugging_properties
+
 # SELinux Enforcing
 if [[ "${config_selinux}" == "1" ]]; then
 	[[ "$(getenforce)" != "Enforcing" ]] && setenforce 1

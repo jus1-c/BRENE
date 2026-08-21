@@ -38,6 +38,24 @@ resetprop_n() {
 	resetprop -n "$1" "$2"
 }
 
+restore_adb_debugging_properties() {
+	if [[ "${config_usb_debugging}" == "1" ]]; then
+		resetprop -d "init.svc.adbd"
+		resetprop -d "init.svc_debug_pid.adbd"
+		resetprop -d "persist.sys.usb.config"
+		settings put global adb_enabled 0
+		sleep 1
+		settings put global adb_enabled 1
+		setprop persist.sys.usb.config "mtp,adb"
+		setprop sys.usb.config "mtp,adb"
+		svc usb resetUsbGadget
+	fi
+
+	if [[ "${config_wireless_debugging}" == "1" ]]; then
+		settings put global adb_wifi_enabled 1
+	fi
+}
+
 if_prop_value_exits_resetprop_n() {
 	local PROP_NAME=$1
 	local EXPECTED_VALUE=$2
