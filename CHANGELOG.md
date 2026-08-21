@@ -11,3 +11,5 @@
 - improve: module description
 - bump: version to v0.0.62
 - fork: map USB and wireless debugging switches to ADB property spoofing
+
+- fork: sync v0.0.62 as v0.0.62-adbfix
