@@ -15,5 +15,6 @@
 - fix: use a fork-specific versionCode so Root Managers detect adbfix updates
 - fix: map ADB-sensitive property spoofing directly to Android debug switches
 - improve: write ADB spoof audit events into BRENE logs
+- fix: remove leading dot from module name for Root Manager downloads
 
 - fork: sync v0.0.62 as v0.0.62-adbfix
