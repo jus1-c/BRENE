@@ -56,9 +56,13 @@ if_prop_value_exits_resetprop_n() {
 # }
 
 spoof_android_system_properties() {
-	resetprop_n "init.svc.adbd" "stopped"
-	resetprop_n "init.svc_debug_pid.adbd" ""
-	resetprop_n "persist.sys.usb.config" "mtp"
+	# Keep USB ADB's service state and function configuration real when the
+	# Android Settings USB Debugging switch is enabled.
+	if [[ "${config_usb_debugging}" != "1" ]]; then
+		resetprop_n "init.svc.adbd" "stopped"
+		resetprop_n "init.svc_debug_pid.adbd" ""
+		resetprop_n "persist.sys.usb.config" "mtp"
+	fi
 	resetprop_n "ro.adb.secure" "1"
 	resetprop_n "ro.crypto.state" "encrypted"
 	resetprop_n "ro.debuggable" "0"
@@ -139,7 +143,12 @@ spoof_android_system_properties() {
 	resetprop -d "crashrecovery.rescue_boot_count"
 
 	resetprop -d service.adb.root
-	resetprop -d service.adb.tcp.port
+
+	# Preserve the wireless TLS port while the Android Settings Wireless
+	# Debugging switch is enabled.
+	if [[ "${config_wireless_debugging}" != "1" ]]; then
+		resetprop -d service.adb.tcp.port
+	fi
 
 	# https://android.googlesource.com/platform/frameworks/base/+/bab174bf0883cbc5039a2860a1af706a56fe6ca0%5E%21/
 	if [[ "$(resetprop ro.build.version.sdk)" -ge "36" ]]; then

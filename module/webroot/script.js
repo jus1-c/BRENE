@@ -29,11 +29,21 @@ const configs = [
 	},
 	{
 		id: 'usb_debugging',
-		action: (enabled) => setFeature(`settings put global adb_enabled ${enabled ? 1 : 0}`),
+		action: (enabled) =>
+			setFeature(
+				enabled
+					? 'settings put global adb_enabled 1; resetprop -d init.svc.adbd; resetprop -d init.svc_debug_pid.adbd; resetprop -d persist.sys.usb.config; setprop persist.sys.usb.config mtp,adb; setprop sys.usb.config mtp,adb; svc usb resetUsbGadget'
+					: 'settings put global adb_enabled 0; resetprop -n init.svc.adbd stopped; resetprop -n init.svc_debug_pid.adbd ""; resetprop -n persist.sys.usb.config mtp',
+			),
 	},
 	{
 		id: 'wireless_debugging',
-		action: (enabled) => setFeature(`settings put global adb_wifi_enabled ${enabled ? 1 : 0}`),
+		action: (enabled) =>
+			setFeature(
+				enabled
+					? 'settings put global adb_wifi_enabled 1'
+					: 'settings put global adb_wifi_enabled 0; resetprop -d service.adb.tcp.port',
+			),
 	},
 	{
 		id: 'selinux',
