@@ -61,6 +61,10 @@ The fork checks upstream releases daily. Clean upstream merges are published
 automatically as `<upstream-tag>-adbfix` releases. If upstream changes conflict
 with the ADB fix, the workflow stops without publishing a release.
 
+Fork releases use `versionCode = upstreamVersionCode * 100`, reserving the last
+two digits for fork hotfixes. This keeps fork updates newer than the matching
+upstream release in Root Manager update checks.
+
 ## Credits
 
 - [`Magisk`](https://github.com/topjohnwu/Magisk)

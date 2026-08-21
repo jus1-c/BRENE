@@ -12,5 +12,6 @@
 - bump: version to v0.0.62
 - fork: map USB and wireless debugging switches to ADB property spoofing
 - fix: restore stale USB ADB spoof props after upgrading from upstream BRENE
+- fix: use a fork-specific versionCode so Root Managers detect adbfix updates
 
 - fork: sync v0.0.62 as v0.0.62-adbfix
