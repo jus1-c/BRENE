@@ -104,24 +104,23 @@ fi
 # Remove fake_files folder
 [[ -d "${PERSISTENT_DIR}/fake_files" ]] && rm -rf "${PERSISTENT_DIR}/fake_files"
 
+# Disable outdated modules
+# echo "[✅] Disabling outdated modules"
+# modules="
 # zygisk_shamiko
 # zygisk-assistant
 # zygisk-maphide
 # zygisk_nohello
+# playintegrity
+# integritybox
+# IntegrityBox
+# Integrity-Box
 # safetynet-fix
 # MagiskHidePropsConf
 # tsupport
 # tsupport-advance
 # BetterKnownInstalled
-
-# Drop useless modules
-modules="
-ReSuSFS
-"
-for module in ${modules}; do
-	[[ -e "/data/adb/modules/${module}" ]] && touch "/data/adb/modules/${module}/remove"
-done
-
-if [[ -e "/data/adb/modules/playintegrityfix" ]] && grep -q "Integrity-Box" "/data/adb/modules/playintegrityfix/module.prop"; then
-	touch "/data/adb/modules/playintegrityfix/remove"
-fi
+# "
+# for i in ${modules}; do
+# 	[[ -e "/data/adb/modules/${i}" ]] && touch "/data/adb/modules/${i}/remove"
+# done
