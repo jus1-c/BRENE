@@ -1,20 +1,16 @@
 # Changelog
 
-# Supports SuSFS 2.2.0+
+# Supports SuSFS 2.2.0 and 2.3.0+
 
-- fix: use resetprop_n function not "resetprop -n -p"
-- add: new toggle "Hide Custom ROM Paths (Extreme)"
-- improve: "Umount Suspicious Mounts" feature
-- fix: webui: annoying line break
-- improve: add more paths with lineage strings
-- drop: specter recommendation
+- improve: replace sus_path with sus_path_loop better hiding instead of performance
 - improve: module description
-- bump: version to v0.0.62
-- fork: map USB and wireless debugging switches to ADB property spoofing
-- fix: restore stale USB ADB spoof props after upgrading from upstream BRENE
-- fix: use a fork-specific versionCode so Root Managers detect adbfix updates
-- fix: map ADB-sensitive property spoofing directly to Android debug switches
-- improve: write ADB spoof audit events into BRENE logs
-- fix: remove leading dot from module name for Root Manager downloads
+- add: new banner
+- improve: drop redundant code
+- add: action.sh file
+- improve: Spoof Uname: NON-GKI support
+- add: OverlayFS MetaModule recommendation and drop mmrs
+- improve: Hide Suspicious Injections: add official OverlayFS MetaModule support
+- add: new incompatible module
+- bump: version to v0.0.65
 
-- fork: sync v0.0.62 as v0.0.62-adbfix
+- fork: sync v0.0.65 as v0.0.65-adbfix

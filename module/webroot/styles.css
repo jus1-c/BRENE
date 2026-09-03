@@ -8,7 +8,7 @@
 
 body {
 	padding-top: var(--top-inset);
-	padding-bottom: calc(var(--bottom-inset) + 60px);
+	padding-bottom: calc(var(--bottom-inset) + 500px);
 	margin: 0;
 	overflow-x: hidden;
 	display: flex;
@@ -31,7 +31,7 @@ body {
 md-switch {
 	flex-shrink: 0;
 	pointer-events: all;
-	scale: 1.36;
+	scale: 1.1;
 }
 
 .title {

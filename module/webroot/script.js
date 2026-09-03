@@ -47,11 +47,18 @@ const configs = [
 		id: 'show_refresh_rate',
 		action: (enabled) => setFeature(`service call SurfaceFlinger 1034 i32 ${enabled ? 1 : 0}`),
 	},
+	{
+		id: 'disable_child_process_restrictions',
+		action: (enabled) => {
+			setFeature(`resetprop -n persist.sys.fflag.override.settings_enable_monitor_phantom_procs ${enabled ? false : true}`)
+		},
+	},
 	{ id: 'pif_props' },
 	{ id: 'rom_props' },
 	{ id: 'brene_logs' },
 	{ id: 'enable_log' },
 	{ id: 'spoof_uname' },
+	{ id: 'spoof_hosts' },
 	{ id: 'hide_addon_d' },
 	{ id: 'hide_injections' },
 	{ id: 'custom_spoof_uname' },
@@ -65,7 +72,6 @@ const configs = [
 	{ id: 'enable_avc_log_spoofing' },
 	{ id: 'umount_suspicious_mounts' },
 	{ id: 'spoof_cmdline_or_bootconfig' },
-	{ id: 'fix_debug_ramdisk_inconsistencies' },
 	{ id: 'fix_data_local_tmp_inconsistencies' },
 	{ id: 'spoof_system_properties' },
 	{ id: 'spoof_system_properties_repeat' },
@@ -73,7 +79,6 @@ const configs = [
 	{ id: 'paths_hiding__non_standard_sdcard' },
 	{ id: 'paths_hiding__non_standard_sdcard_android' },
 	{ id: 'paths_hiding__data_local_tmp' },
-	{ id: 'paths_hiding__sdcard_android_data_media_obb' },
 ]
 
 // Open URLs
@@ -154,7 +159,7 @@ exec('[[ -n "$(find /system -iname "*lineage*")" ]] && echo "Yes" || echo "No"')
 })
 
 // Load ..5.u.S Status
-exec('[[ -e /sdcard/..5.u.S ]] && echo "Abnormal" || echo "Normal"').then((result) => {
+exec('[[ -e /storage/emulated/0/..5.u.S ]] && echo "Abnormal" || echo "Normal"').then((result) => {
 	const container = document.querySelector('#sus-status .card-row__sub')
 
 	if (result.errno !== 0) {
@@ -221,7 +226,7 @@ exec('susfs show enabled_features').then((result) => {
 		container.innerText = 'Failed to load enabled features'
 		return
 	}
-	container.innerText = result.stdout.replaceAll('CONFIG_KSU_SUSFS_', '')
+	container.innerText = result.stdout.replaceAll('CONFIG_KSU_SUSFS_', '').replaceAll('_', ' ')
 })
 
 // Load logs
@@ -326,6 +331,33 @@ exec(`cat ${PERSISTENT_DIR}/config.sh`).then((result) => {
 			if (config.action) config.action(enabled)
 		})
 	})
+
+	// Reset Settings
+	const dialog = document.getElementById('dialog')
+	const openButton = document.getElementById('reset_settings')
+	openButton.addEventListener('click', () => {
+		dialog.show()
+	})
+	dialog.addEventListener('close', () => {
+		if (dialog.returnValue === 'confirm') {
+			exec(`
+				cp -f ${MODDIR}/config.sh ${PERSISTENT_DIR}
+			`).then((result) => {
+				configs.forEach((config) => {
+					const configId = `config_${config.id}`
+					const element = document.getElementById(config.id)
+					if (!element) return
+
+					const value = configValues[configId]
+					if (value !== undefined) {
+						element.selected = parseInt(value) === 1
+					}
+				})
+
+				toast(result.errno === 0 ? 'Success' : result.stderr)
+			})
+		}
+	})
 })
 
 // KSU Modules toggles
@@ -374,14 +406,28 @@ exec(`cat ${PERSISTENT_DIR}/config.sh`).then((result) => {
 
 	button.addEventListener('click', () => {
 		updateConfig2('config_spoof_verified_boot_hash', textField.value)
-		toast('Reboot to take effect')
+
+		exec(`resetprop -n ro.boot.vbmeta.digest ${textField.value}`).then((result) => {
+			if (result.errno === 0) {
+				toast('No need to reboot')
+			} else {
+				toast('Failed to update prop')
+			}
+		})
 	})
+
+	// textField.addEventListener('focus', () => {
+	// 	setTimeout(() => {
+	// 		window.scrollTo({
+	// 			top: Math.max(document.body.scrollHeight, document.documentElement.scrollHeight),
+	// 		})
+	// 	}, 500)
+	// })
 })()
 
 //
 ;(async () => {
 	const mapField = document.getElementById('custom_sus_map_text_field')
-	const mountField = document.getElementById('custom_sus_mount_text_field')
 	const pathField = document.getElementById('custom_sus_path_text_field')
 	const loopField = document.getElementById('custom_sus_path_loop_text_field')
 	const applyButton = document.getElementById('unified_apply_button')
@@ -390,16 +436,13 @@ exec(`cat ${PERSISTENT_DIR}/config.sh`).then((result) => {
 
 	// Load all contents
 	exec(`cat ${PERSISTENT_DIR}/custom_sus_map.txt`).then((result) => {
-		mapField.value = result.errno === 0 ? `${result.stdout}\n` : ''
-	})
-	exec(`cat ${PERSISTENT_DIR}/custom_sus_mount.txt`).then((result) => {
-		mountField.value = result.errno === 0 ? `${result.stdout}\n` : ''
+		mapField.value = result.errno === 0 ? `${result.stdout}` : ''
 	})
 	exec(`cat ${PERSISTENT_DIR}/custom_sus_path.txt`).then((result) => {
-		pathField.value = result.errno === 0 ? `${result.stdout}\n` : ''
+		pathField.value = result.errno === 0 ? `${result.stdout}` : ''
 	})
 	exec(`cat ${PERSISTENT_DIR}/custom_sus_path_loop.txt`).then((result) => {
-		loopField.value = result.errno === 0 ? `${result.stdout}\n` : ''
+		loopField.value = result.errno === 0 ? `${result.stdout}` : ''
 	})
 
 	// Tabs and Scroll Sync
@@ -435,18 +478,48 @@ exec(`cat ${PERSISTENT_DIR}/config.sh`).then((result) => {
 				content = mapField.value
 				break
 			case 1:
-				file = 'custom_sus_mount.txt'
-				content = mountField.value
-				break
-			case 2:
 				file = 'custom_sus_path.txt'
 				content = pathField.value
 				break
-			case 3:
+			case 2:
 				file = 'custom_sus_path_loop.txt'
 				content = loopField.value
 				break
 		}
+
+		if (file) {
+			if (content === '') {
+				exec(`printf '' > ${PERSISTENT_DIR}/${file}`).then((result) => {
+					toast(result.errno === 0 ? 'Success' : result.stderr)
+				})
+			} else {
+				content = content.replaceAll('/sdcard', '/storage/emulated/0')
+
+				exec(`
+cat <<'UNIQUE_EOF' > ${PERSISTENT_DIR}/${file}
+${content}
+UNIQUE_EOF
+				`).then((result) => {
+					toast(result.errno === 0 ? 'Success' : result.stderr)
+				})
+			}
+		}
+	}
+})()
+
+// Manual Kernel Umount
+;(async () => {
+	const mountField = document.getElementById('custom_kernel_umount_text_field')
+	const applyButton = document.getElementById('kernel_umount_apply_button')
+
+	// Load all content
+	exec(`cat ${PERSISTENT_DIR}/custom_kernel_umount.txt`).then((result) => {
+		mountField.value = result.errno === 0 ? `${result.stdout}` : ''
+	})
+
+	applyButton.onclick = () => {
+		let file = 'custom_kernel_umount.txt'
+		let content = mountField.value
 
 		if (file) {
 			if (content === '') {
@@ -506,13 +579,13 @@ UNIQUE_EOF
 	let touchStartY = 0
 
 	const updateUI = (index) => {
+		buttons[index].click()
+
 		buttons[index].scrollIntoView({
-			behavior: 'smooth',
+			behavior: 'auto',
 			block: 'nearest',
 			inline: 'center',
 		})
-
-		buttons[index].click()
 	}
 
 	const changeTab = (index) => {
@@ -534,14 +607,17 @@ UNIQUE_EOF
 	bodyContent.addEventListener(
 		'touchend',
 		(e) => {
-			if (e.target.closest('.tab-bar') === null && e.target.closest('.app-header') === null) {
+			if (e.target.closest('.tab-bar') === null) {
 				const touchEndX = e.changedTouches[0].clientX
 				const touchEndY = e.changedTouches[0].clientY
 
 				const diffX = touchStartX - touchEndX
 				const diffY = touchStartY - touchEndY
 
-				if (Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(diffX) > Math.abs(diffY)) {
+				const isHorizontalSwipe = Math.abs(diffX) > SWIPE_THRESHOLD
+				const isDominantX = Math.abs(diffX) > Math.abs(diffY) * 3
+
+				if (isHorizontalSwipe && isDominantX) {
 					if (diffX > 0) {
 						changeTab(currentIndex + 1)
 					} else {

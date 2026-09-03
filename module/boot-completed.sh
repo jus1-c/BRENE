@@ -13,13 +13,31 @@ CUSTOM_ROM_NAMES="lineage|infinity|evolution|crdroid|mistos|axion|pixelos|rising
 # Load config
 [[ -e "${PERSISTENT_DIR}/config.sh" ]] && source "${PERSISTENT_DIR}/config.sh"
 
+# Drop useless modules
+modules="
+ReSuSFS
+"
+for module in ${modules}; do
+	[[ -e "/data/adb/modules/${module}" ]] && touch "/data/adb/modules/${module}/remove"
+done
+
+if [[ -e "/data/adb/modules/playintegrityfix" ]] && grep -q "Integrity-Box" "/data/adb/modules/playintegrityfix/module.prop"; then
+	touch "/data/adb/modules/playintegrityfix/remove"
+	reboot
+fi
+[[ -e "/data/adb/modules/ReSuSFS" ]] && reboot
+
 # Update Description
-susfs_ver=$(${SUSFS_BIN} show version)
+susfs_version=$(${SUSFS_BIN} show version)
+susfs_variant=$(${SUSFS_BIN} show variant)
+susfs_features_number=$(${SUSFS_BIN} show enabled_features | wc -l)
 description="A SuSFS/KernelSU module for SuSFS patched kernels"
-if [[ "${susfs_ver}" == "v2"* ]]; then
-	${KSU_BIN} module config set override.description "[SuSFS: ${susfs_ver} 💯] ${description}"
+if [[ "${susfs_version}" == "v2"* ]]; then
+	status="Active ✅"
+	${KSU_BIN} module config set override.description "[Status: ${status} | SuSFS: ${susfs_version} (${susfs_variant}) | SuSFS Features: ${susfs_features_number} enabled] ${description}"
 else
-	${KSU_BIN} module config set override.description "[SuSFS: ❌] ${description}"
+	status="Not Working ❌"
+	${KSU_BIN} module config set override.description "[Status: ${status} | SuSFS: ${susfs_version} (${susfs_variant}) | SuSFS Features: ${susfs_features_number} enabled] ${description}"
 fi
 
 # SU Compat
@@ -60,6 +78,21 @@ elif [[ "${config_wireless_debugging}" == "0" ]]; then
 	settings put global adb_wifi_enabled 0
 fi
 
+# Disable Child Process Restrictions
+if [[ "${config_disable_child_process_restrictions}" == "1" ]]; then
+	resetprop_n persist.sys.fflag.override.settings_enable_monitor_phantom_procs false
+fi
+
+# Max Saturation
+if [[ "${config_saturation}" == "1" ]]; then
+	service call SurfaceFlinger 1022 f 2.0
+fi
+
+# Show Refresh Rate
+if [[ "${config_show_refresh_rate}" == "1" ]]; then
+	service call SurfaceFlinger 1034 i32 1
+fi
+
 # SELinux Enforcing
 if [[ "${config_selinux}" == "1" ]]; then
 	[[ "$(getenforce)" != "Enforcing" ]] && setenforce 1
@@ -81,24 +114,14 @@ if [[ "${config_pif_props}" == "1" ]]; then
 	done
 fi
 
-# Max Saturation
-if [[ "${config_saturation}" == "1" ]]; then
-	service call SurfaceFlinger 1022 f 2.0
-fi
-
-# Show Refresh Rate
-if [[ "${config_show_refresh_rate}" == "1" ]]; then
-	service call SurfaceFlinger 1034 i32 1
-fi
-
 # Spoof Android System Properties
 if [[ "${config_spoof_system_properties}" == "1" ]]; then
 	spoof_android_system_properties
 fi
 
 #### Hide some sus paths, effective only for processes that are marked umounted with uid >= 10000 ####
-## First we need to wait until files are accessible in /sdcard ##
-until [[ -e "/sdcard/Android" ]]; do sleep 1; done
+## First we need to wait until files are accessible in /storage/emulated/0 ##
+until [[ -e "/storage/emulated/0/Android" ]]; do sleep 1; done
 
 # Spoof Android System Properties
 if [[ "${config_spoof_system_properties}" == "1" ]]; then
@@ -114,21 +137,21 @@ if [[ "${config_spoof_system_properties_repeat}" == "1" ]]; then
 fi
 
 ## Remove the '..5.u.S' leftover ##
-## THe reason why this sus file is created is because users have grant the MANAGE_EXTERNAL_STORAGE permission for the apps that detecting sus files in /sdcard, or in /sdcard/Android/data where the apps are exploiting the unicode bugs to create files arbitrary.
+## THe reason why this sus file is created is because users have grant the MANAGE_EXTERNAL_STORAGE permission for the apps that detecting sus files in /storage/emulated/0, or in /storage/emulated/0/Android/data where the apps are exploiting the unicode bugs to create files arbitrary.
 ## susfs redirects the sus path to a supposed not-existing path named '..5.u.S', and this is the only way to settle the cross check of returned errno from various syscalls, but one disadvantage is that if the path itself can be written/created by the app (MANAGE_EXTERNAL_STORAGE granted), then it is futile to hide it, but at least here we automatically delete them on each boot.
 ## The best practise is to revoke MANAGE_EXTERNAL_STORAGE permission for all third party apps.
-# [ -e "/sdcard/..5.u.S" ] && rm -rf "/sdcard/..5.u.S"
-# [ -e "/sdcard/Android/data/..5.u.S" ] && rm -rf "/sdcard/Android/data/..5.u.S"
-# [ -e "/sdcard/Android/media/..5.u.S" ] && rm -rf "/sdcard/Android/media/..5.u.S"
+# [ -e "/storage/emulated/0/..5.u.S" ] && rm -rf "/storage/emulated/0/..5.u.S"
+# [ -e "/storage/emulated/0/Android/data/..5.u.S" ] && rm -rf "/storage/emulated/0/Android/data/..5.u.S"
+# [ -e "/storage/emulated/0/Android/media/..5.u.S" ] && rm -rf "/storage/emulated/0/Android/media/..5.u.S"
 
 # Remove "..5.u.S"
 TARGET="..5.u.S"
-TARGET1="/sdcard/${TARGET}"
-TARGET2="/sdcard/Android/data/${TARGET}"
-TARGET3="/sdcard/Android/media/${TARGET}"
-TARGET4="/sdcard/Android/obb/${TARGET}"
+TARGET1="/storage/emulated/0/${TARGET}"
+TARGET2="/storage/emulated/0/Android/data/${TARGET}"
+TARGET3="/storage/emulated/0/Android/media/${TARGET}"
+TARGET4="/storage/emulated/0/Android/obb/${TARGET}"
 rm -rf "${TARGET1}" "${TARGET2}" "${TARGET3}" "${TARGET4}"
-inotifyd "${MODDIR}/inotify.sh" /sdcard:n &
+inotifyd "${MODDIR}/inotify.sh" /storage/emulated/0:n &
 
 ## For paths that are frequently modified, we can add them via 'add_sus_path_loop' ##
 ## Be reminded that without HMA's vold app data enabled, added sus_paths are still vulnerable to zwc exploit, so in this case users also have to add its underlying path as well ##
@@ -146,18 +169,20 @@ if [[ "${config_hide_custom_recovery}" == "1" ]]; then
 		} >> "${PERSISTENT_DIR}/logs.txt"
 	fi
 
-	[[ -e "/sdcard/Fox" ]] && brene_sus_path_loop "/sdcard/Fox"
-	[[ -e "/sdcard/TWRP" ]] && brene_sus_path_loop "/sdcard/TWRP"
+	[[ -e "/storage/emulated/0/Fox" ]] && brene_sus_path_loop "/storage/emulated/0/Fox"
+	[[ -e "/storage/emulated/0/TWRP" ]] && brene_sus_path_loop "/storage/emulated/0/TWRP"
 	[[ -e "/data/recovery" ]] && brene_sus_path_loop "/data/recovery"
+	[[ -e "/vendor/bin/install-recovery.sh" ]] && brene_sus_path_loop "/vendor/bin/install-recovery.sh"
+	[[ -e "/system/bin/install-recovery.sh" ]] && brene_sus_path_loop "/system/bin/install-recovery.sh"
 fi
 
-# Non-standard /sdcard
+# Non-standard /storage/emulated/0
 if [[ "${config_paths_hiding__non_standard_sdcard}" == "1" ]]; then
 	if [[ "${config_brene_logs}" == "1" ]]; then
 		{
 			echo ""
 			echo "####################"
-			echo "Non-standard /sdcard"
+			echo "Non-standard /storage/emulated/0"
 			echo "####################"
 		} >> "${PERSISTENT_DIR}/logs.txt"
 	fi
@@ -168,10 +193,10 @@ if [[ "${config_paths_hiding__non_standard_sdcard}" == "1" ]]; then
 		standard_paths="Alarms Android Audiobooks DCIM Documents Download Movies Music Notifications Pictures Podcasts Recordings Ringtones MIUI"
 	fi
 
-	for i in /sdcard/*; do
+	for i in /storage/emulated/0/*; do
 		pass=0
 		for x in ${standard_paths}; do
-			if [[ "/sdcard/${x}" == "${i}" ]]; then
+			if [[ "/storage/emulated/0/${x}" == "${i}" ]]; then
 				pass=1
 				break
 			fi
@@ -183,22 +208,22 @@ if [[ "${config_paths_hiding__non_standard_sdcard}" == "1" ]]; then
 	done
 fi
 
-# Non-standard /sdcard/Android
+# Non-standard /storage/emulated/0/Android
 if [[ "${config_paths_hiding__non_standard_sdcard_android}" == "1" ]]; then
 	if [[ "${config_brene_logs}" == "1" ]]; then
 		{
 			echo ""
 			echo "############################"
-			echo "Non-standard /sdcard/Android"
+			echo "Non-standard /storage/emulated/0/Android"
 			echo "############################"
 		} >> "${PERSISTENT_DIR}/logs.txt"
 	fi
 
 	standard_paths="data media obb"
-	for i in /sdcard/Android/*; do
+	for i in /storage/emulated/0/Android/*; do
 		pass=0
 		for x in ${standard_paths}; do
-			if [[ "/sdcard/Android/${x}" == "${i}" ]]; then
+			if [[ "/storage/emulated/0/Android/${x}" == "${i}" ]]; then
 				pass=1
 				break
 			fi
@@ -225,59 +250,6 @@ if [[ "${config_paths_hiding__data_local_tmp}" == "1" ]]; then
 		brene_sus_path_loop "${i}"
 	done
 fi
-
-# /sdcard/Android/[data | media | obb]
-if [[ "${config_paths_hiding__sdcard_android_data_media_obb}" == "1" ]]; then
-	if [[ "${config_brene_logs}" == "1" ]]; then
-		{
-			echo ""
-			echo "####################################"
-			echo "/sdcard/Android/[data | media | obb]"
-			echo "####################################"
-		} >> "${PERSISTENT_DIR}/logs.txt"
-	fi
-
-	packages="
-	io.github.muntashirakon.AppManager
-	com.github.capntrips.kernelflasher
-	com.machiav3lli.backup
-	"
-
-	for i in ${packages}; do
-		path1=/sdcard/Android
-		full_path1="${path1}/data/${i}"
-		full_path2="${path1}/media/${i}"
-		full_path3="${path1}/obb/${i}"
-		[[ -e "${full_path1}" ]] && brene_sus_path_loop "${full_path1}"
-		[[ -e "${full_path2}" ]] && brene_sus_path_loop "${full_path2}"
-		[[ -e "${full_path3}" ]] && brene_sus_path_loop "${full_path3}"
-	done
-
-	# path1=/sdcard/Android/data
-	# path2=/sdcard/Android/media
-	# path3=/sdcard/Android/obb
-	# for i in $(pm list packages -3 | cut -d':' -f2); do
-	# 	full_path1="${path1}/${i}"
-	# 	full_path2="${path2}/${i}"
-	# 	full_path3="${path3}/${i}"
-	# 	[[ -e "${full_path1}" ]] && brene_sus_path_loop "${full_path1}"
-	# 	[[ -e "${full_path2}" ]] && brene_sus_path_loop "${full_path2}"
-	# 	[[ -e "${full_path3}" ]] && brene_sus_path_loop "${full_path3}"
-	# done
-fi
-
-## For paths that are read-only all the time, add them via 'add_sus_path' ##
-if [[ "${config_brene_logs}" == "1" ]]; then
-	{
-		echo ""
-		echo "#############################"
-		echo "Other Suspicious Paths Hiding"
-		echo "#############################"
-	} >> "${PERSISTENT_DIR}/logs.txt"
-fi
-# brene_sus_path_loop "/sys/block/loop0"
-brene_sus_path_loop "/vendor/bin/install-recovery.sh"
-brene_sus_path_loop "/system/bin/install-recovery.sh"
 
 # Load custom_sus_map.txt
 if [[ -e "${PERSISTENT_DIR}/custom_sus_map.txt" ]]; then
@@ -309,14 +281,14 @@ if [[ -e "${PERSISTENT_DIR}/custom_sus_path_loop.txt" ]]; then
 	done < "${PERSISTENT_DIR}/custom_sus_path_loop.txt"
 fi
 
-# Load custom_sus_mount.txt
-if [[ -e "${PERSISTENT_DIR}/custom_sus_mount.txt" ]]; then
+# Load custom_kernel_umount.txt
+if [[ -e "${PERSISTENT_DIR}/custom_kernel_umount.txt" ]]; then
 	while IFS= read -r i; do
 		# Skip empty lines or comments
 		[[ -z "${i// /}" || "${i// /}" == "#"* ]] && continue
 
-		brene_sus_mount "${i}"
-	done < "${PERSISTENT_DIR}/custom_sus_mount.txt"
+		brene_kernel_umount "${i}"
+	done < "${PERSISTENT_DIR}/custom_kernel_umount.txt"
 fi
 
 #### Hide the mmapped real file from various maps in /proc/self/, effective only for processes that are marked umounted with uid >= 10000 ####
@@ -339,30 +311,6 @@ fi
 ##         busybox nsenter -t <pid_of_mnt_ns_the_target_dev_number_belongs_to> -m ksu_susfs add_sus_map <target_path>
 ## Hide some zygisk modules ##
 # brene_sus_map /data/adb/modules/my_module/zygisk/arm64-v8a.so
-
-# Injections Hiding
-if [[ "${config_hide_injections}" == "1" ]]; then
-	if [[ "${config_brene_logs}" == "1" ]]; then
-		{
-			echo ""
-			echo "#################"
-			echo "Injections Hiding"
-			echo "#################"
-		} >> "${PERSISTENT_DIR}/logs.txt"
-	fi
-
-	for i in /data/adb/modules/*; do
-		if [[ -e "${i}/system" ]]; then
-			for x in $(find "${i}/system" -type f); do
-				brene_sus_map "${x}"
-			done
-		fi
-	done
-
-	for i in $(find /data/adb/modules -name "*.so"); do
-		brene_sus_map "${i}"
-	done
-fi
 
 #### Adding sus mounts to umount list via built-in KernelSU kernel umount (not via add_try_umount from old susfs) ####
 # cat <<EOF >/dev/null
@@ -396,7 +344,7 @@ if [[ "${config_hide_framework_res_apk}" == "1" ]]; then
 	done
 fi
 
-# Spoof Android Verified Boot Hash
+# Spoof Android Verified Boot Hash Property
 if [[ "${config_spoof_verified_boot_hash}" != '' ]]; then
 	resetprop_n "ro.boot.vbmeta.digest" "${config_spoof_verified_boot_hash}"
 fi
@@ -415,17 +363,32 @@ if [[ "${config_fix_data_local_tmp_inconsistencies}" == "1" ]]; then
 	${SUSFS_BIN} add_sus_kstat_statically "${target_folder}" '100' 'default' 'default' '4096' 'default' 'default' 'default' 'default' 'default' 'default' '8' '4096'
 fi
 
-# Fix /debug_ramdisk Inconsistencies
-if [[ "${config_fix_debug_ramdisk_inconsistencies}" == "1" ]]; then
-	target_folder="/debug_ramdisk"
+# Hide Suspicious Injections
+if [[ "${config_hide_injections}" == "1" ]]; then
+	if [[ "${config_brene_logs}" == "1" ]]; then
+		{
+			echo ""
+			echo "##########################"
+			echo "Hide Suspicious Injections"
+			echo "##########################"
+		} >> "${PERSISTENT_DIR}/logs.txt"
+	fi
 
-	chmod 0755 "${target_folder}"
-	chown root:root "${target_folder}"
-	chcon u:object_r:tmpfs:s0 "${target_folder}"
-	# add_sus_kstat_statically </path/of/file_or_directory> <ino> <dev> <nlink> <size> <atime> <atime_nsec> <mtime> <mtime_nsec> <ctime> <ctime_nsec> <blocks> <blksize>
-	# ino -> %i, dev -> %d, nlink -> %h, atime -> %X, mtime -> %Y, ctime -> %Z, size -> %s, blocks -> %b, blksize -> %B
-	# Example: stat -c %i <path>
-	${SUSFS_BIN} add_sus_kstat_statically "${target_folder}" '20' 'default' 'default' '4096' '1230811200' 'default' '1230811200' 'default' '1230811200' 'default' '8' '4096'
+	overlayfs="/data/adb/modules/meta-overlayfs/mnt"
+	magic_mount="/data/adb/modules"
+	[[ -e "${overlayfs}" ]] && path="${overlayfs}" || path="${magic_mount}"
+
+	for module in "${path}"/*; do
+		if [[ -e "${module}/system" ]]; then
+			find "${module}/system" -type f | while read -r file; do
+				brene_sus_map "${file}"
+			done
+		fi
+	done
+
+	find /data/adb/modules -name "*.so" | while read -r file; do
+		brene_sus_map "${file}"
+	done
 fi
 
 resetprop -c --force

@@ -9,6 +9,15 @@ DEST_BIN_DIR=/data/adb/ksu/bin
 # Load utils
 [[ -e "${MODPATH}/utils.sh" ]] && source "${MODPATH}/utils.sh"
 
+echo ""
+echo "██████╗ ██████╗ ███████╗███╗   ██╗███████╗"
+echo "██╔══██╗██╔══██╗██╔════╝████╗  ██║██╔════╝"
+echo "██████╔╝██████╔╝█████╗  ██╔██╗ ██║█████╗  "
+echo "██╔══██╗██╔══██╗██╔══╝  ██║╚██╗██║██╔══╝  "
+echo "██████╔╝██║  ██║███████╗██║ ╚████║███████╗"
+echo "╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚══════╝"
+echo ""
+
 # Hot Install Support
 export MODULE_HOT_INSTALL_REQUEST="true"
 
@@ -37,15 +46,19 @@ chmod 755 "${DEST_BIN_DIR}/susfs"
 ln -sf "${DEST_BIN_DIR}/susfs" "${DEST_BIN_DIR}/sus"       # For development
 ln -sf "${DEST_BIN_DIR}/susfs" "${DEST_BIN_DIR}/ksu_susfs" # For compatibility
 
-susfs_ver=$(${SUSFS_BIN} show version)
-if [[ "${susfs_ver}" == "v2"* ]]; then
-	echo "[✅] Detected SuSFS version: ${susfs_ver}"
+susfs_version=$(${SUSFS_BIN} show version)
+if [[ "${susfs_version}" == "v2"* ]]; then
+	echo "[✅] Detected SuSFS version: ${susfs_version}"
 else
-	abort "[❌] Not supported SuSFS version ${susfs_ver}!"
+	abort "[❌] Not supported SuSFS version ${susfs_version}!"
 fi
 
 # Reset module description
-${KSU_BIN} module config set override.description "[SuSFS: ⏱️] A SuSFS/KernelSU module for SuSFS patched kernels"
+susfs_variant=$(${SUSFS_BIN} show variant)
+susfs_features_number=$(${SUSFS_BIN} show enabled_features | wc -l)
+description="A SuSFS/KernelSU module for SuSFS patched kernels"
+status="Waiting reboot ⏱️"
+${KSU_BIN} module config set override.description "[Status: ${status} | SuSFS: ${susfs_version} (${susfs_variant}) | SuSFS Features: ${susfs_features_number} enabled] ${description}"
 
 # Disable other SuSFS modules
 [[ -e "${KSU_MODULES_DIR}/susfs4ksu" ]] && {
@@ -60,7 +73,7 @@ mkdir -p "${PERSISTENT_DIR}"
 
 files="
 custom_sus_map.txt
-custom_sus_mount.txt
+custom_kernel_umount.txt
 custom_sus_path.txt
 custom_sus_path_loop.txt
 "
@@ -91,23 +104,24 @@ fi
 # Remove fake_files folder
 [[ -d "${PERSISTENT_DIR}/fake_files" ]] && rm -rf "${PERSISTENT_DIR}/fake_files"
 
-# Disable outdated modules
-# echo "[✅] Disabling outdated modules"
-# modules="
 # zygisk_shamiko
 # zygisk-assistant
 # zygisk-maphide
 # zygisk_nohello
-# playintegrity
-# integritybox
-# IntegrityBox
-# Integrity-Box
 # safetynet-fix
 # MagiskHidePropsConf
 # tsupport
 # tsupport-advance
 # BetterKnownInstalled
-# "
-# for i in ${modules}; do
-# 	[[ -e "/data/adb/modules/${i}" ]] && touch "/data/adb/modules/${i}/remove"
-# done
+
+# Drop useless modules
+modules="
+ReSuSFS
+"
+for module in ${modules}; do
+	[[ -e "/data/adb/modules/${module}" ]] && touch "/data/adb/modules/${module}/remove"
+done
+
+if [[ -e "/data/adb/modules/playintegrityfix" ]] && grep -q "Integrity-Box" "/data/adb/modules/playintegrityfix/module.prop"; then
+	touch "/data/adb/modules/playintegrityfix/remove"
+fi

@@ -103,6 +103,16 @@
 					</div>
 				</div>
 
+				<p class="section-label">Enabled Features In Kernel</p>
+				<div class="card-group">
+					<div class="card-row">
+						<div class="card-row__body">
+							<span class="card-row__tag--code" id="kernel-features-container"></span>
+						</div>
+						<md-ripple></md-ripple>
+					</div>
+				</div>
+
 				<p class="section-label">Recommended Modules</p>
 				<div class="card-group" id="recommended-modules">
 					<div class="card-row" data-module="rezygisk">
@@ -175,10 +185,10 @@
 						<md-ripple></md-ripple>
 					</div>
 
-					<div class="card-row" data-module="magic_mount_rs">
+					<div class="card-row" data-module="meta-overlayfs">
 						<div class="card-row__body">
 							<span class="card-row__title">
-								<a href="https://github.com/Tools-cx-app/meta-magic_mount-rs">Magic Mount-rs</a>
+								<a href="https://github.com/KernelSU-Modules-Repo/meta-overlayfs">OverlayFS MetaModule</a>
 							</span>
 							<span class="card-row__sub status-text">Status: Not installed</span>
 						</div>
@@ -207,6 +217,14 @@
 					<div class="card-row" data-module="rod">
 						<div class="card-row__body">
 							<span class="card-row__title">ROD-Manager</span>
+							<span class="card-row__sub status-text">Status: Not installed</span>
+						</div>
+						<md-ripple></md-ripple>
+					</div>
+
+					<div class="card-row" data-module="ReSuSFS">
+						<div class="card-row__body">
+							<span class="card-row__title">ReSuSFS</span>
 							<span class="card-row__sub status-text">Status: Not installed</span>
 						</div>
 						<md-ripple></md-ripple>
@@ -246,6 +264,15 @@
 
 					<div class="card-row">
 						<div class="card-row__body">
+							<span class="card-row__title">Disable Child Process Restrictions</span>
+							<span class="card-row__sub">Enable or disable child process restrictions</span>
+						</div>
+						<md-switch icons id="disable_child_process_restrictions"></md-switch>
+						<md-ripple></md-ripple>
+					</div>
+
+					<div class="card-row">
+						<div class="card-row__body">
 							<span class="card-row__title">Max Saturation</span>
 							<span class="card-row__sub">Enable or disable max saturation</span>
 						</div>
@@ -279,8 +306,8 @@
 						<div class="card-row__body">
 							<span class="card-row__title">Hide Custom Recovery Paths</span>
 							<span class="card-row__tag--code">Example of detections:</span>
-							<span class="card-row__tag--code">/sdcard/Fox</span>
-							<span class="card-row__tag--code">/sdcard/TWRP</span>
+							<span class="card-row__tag--code">/storage/emulated/0/Fox</span>
+							<span class="card-row__tag--code">/storage/emulated/0/TWRP</span>
 							<span class="card-row__tag--code">/data/recovery</span>
 						</div>
 						<md-switch icons id="hide_custom_recovery"></md-switch>
@@ -289,13 +316,13 @@
 
 					<div class="card-row">
 						<div class="card-row__body">
-							<span class="card-row__title">Non-standard /sdcard Paths</span>
+							<span class="card-row__title">Hide Non-standard /storage/emulated/0 Paths</span>
 							<span class="card-row__sub">Standard Paths:</span>
 							<span class="card-row__sub">
 								Alarms, Android, Audiobooks, DCIM, Documents, Download, Movies, Music, Notifications, Pictures, Podcasts, Recordings, Ringtones, (MIUI)
 							</span>
 							<span class="card-row__tag--code">Example of detections:</span>
-							<span class="card-row__tag--code">/sdcard/TWRP</span>
+							<span class="card-row__tag--code">/storage/emulated/0/TWRP</span>
 						</div>
 						<md-switch icons id="paths_hiding__non_standard_sdcard"></md-switch>
 						<md-ripple></md-ripple>
@@ -303,11 +330,11 @@
 
 					<div class="card-row">
 						<div class="card-row__body">
-							<span class="card-row__title">Non-standard /sdcard/Android Paths</span>
+							<span class="card-row__title">Hide Non-standard /storage/emulated/0/Android Paths</span>
 							<span class="card-row__sub"> Standard Paths: </span>
 							<span class="card-row__sub">data, media, obb</span>
 							<span class="card-row__tag--code">Example of detections:</span>
-							<span class="card-row__tag--code">/sdcard/Android/fas-rs</span>
+							<span class="card-row__tag--code">/storage/emulated/0/Android/fas-rs</span>
 						</div>
 						<md-switch icons id="paths_hiding__non_standard_sdcard_android"></md-switch>
 						<md-ripple></md-ripple>
@@ -315,23 +342,11 @@
 
 					<div class="card-row">
 						<div class="card-row__body">
-							<span class="card-row__title">/data/local/tmp Paths</span>
+							<span class="card-row__title">Hide /data/local/tmp Paths</span>
 							<span class="card-row__tag--code">Example of detections:</span>
 							<span class="card-row__tag--code">/data/local/tmp/DebugAssistant.log</span>
 						</div>
 						<md-switch icons id="paths_hiding__data_local_tmp"></md-switch>
-						<md-ripple></md-ripple>
-					</div>
-
-					<div class="card-row">
-						<div class="card-row__body">
-							<span class="card-row__title">/sdcard/Android/[data | media | obb] Paths</span>
-							<span class="card-row__tag--code">Example of detections:</span>
-							<span class="card-row__tag--code">/sdcard/Android/data/ io.github.muntashirakon.AppManager</span>
-							<span class="card-row__tag--code">/sdcard/Android/media/ io.github.muntashirakon.AppManager</span>
-							<span class="card-row__tag--code">/sdcard/Android/obb/ io.github.muntashirakon.AppManager</span>
-						</div>
-						<md-switch icons id="paths_hiding__sdcard_android_data_media_obb"></md-switch>
 						<md-ripple></md-ripple>
 					</div>
 				</div>
@@ -439,13 +454,6 @@
 							<span class="card-row__tag--code">/data/adb/modules/my_module/zygisk/arm64-v8a.so</span>
 							<!-- SUS MAP -->
 
-							<!-- SUS MOUNT -->
-							<span class="card-row__title">SUS MOUNT</span>
-							<span class="card-row__sub">Adding sus mounts to umount list via built-in KernelSU kernel umount</span>
-							<span class="card-row__tag--code">Example:</span>
-							<span class="card-row__tag--code">/system/etc/hosts</span>
-							<!-- SUS MOUNT -->
-
 							<!-- SUS PATH -->
 							<span class="card-row__title">SUS PATH</span>
 							<span class="card-row__sub">Added path and all its sub-paths will be hidden for umounted app process from several syscalls</span>
@@ -468,7 +476,7 @@
 							<span class="card-row__sub">Also it does not check if the path is existed or not, instead it checks for empty string only, so be careful what to add</span>
 							<span class="card-row__sub">For paths that are frequently modified, we can add them via 'add_sus_path_loop'</span>
 							<span class="card-row__tag--code">Example:</span>
-							<span class="card-row__tag--code">/sdcard/TWRP</span>
+							<span class="card-row__tag--code">/storage/emulated/0/TWRP</span>
 							<span class="card-row__tag--code">/data/local/tmp/main.jar</span>
 							<!-- SUS PATH LOOP -->
 						</div>
@@ -478,7 +486,6 @@
 					<div class="card-group sus-card">
 						<md-tabs id="sus_tabs">
 							<md-primary-tab id="tab_sus_map" aria-controls="panel_sus_map">MAP</md-primary-tab>
-							<md-primary-tab id="tab_sus_mount" aria-controls="panel_sus_mount">MOUNT</md-primary-tab>
 							<md-primary-tab id="tab_sus_path" aria-controls="panel_sus_path">PATH</md-primary-tab>
 							<md-primary-tab id="tab_sus_path_loop" aria-controls="panel_sus_path_loop">PATH LOOP</md-primary-tab>
 						</md-tabs>
@@ -486,10 +493,6 @@
 						<div class="snap-container" id="horizontal_scroll_container">
 							<div class="snap-item">
 								<md-filled-text-field class="content" id="custom_sus_map_text_field" type="textarea" rows="12" label="SUS MAP"></md-filled-text-field>
-							</div>
-
-							<div class="snap-item">
-								<md-filled-text-field class="content" id="custom_sus_mount_text_field" type="textarea" rows="12" label="SUS MOUNT"></md-filled-text-field>
 							</div>
 
 							<div class="snap-item">
@@ -528,6 +531,19 @@
 							<span class="card-row__title">Spoof Android System Properties Every Minute</span>
 						</div>
 						<md-switch icons id="spoof_system_properties_repeat"></md-switch>
+						<md-ripple></md-ripple>
+					</div>
+
+					<div class="card-row">
+						<div class="card-row__body">
+							<span class="card-row__title">Spoof /system/etc/hosts</span>
+							<span class="card-row__tag--code">Example of detections:</span>
+							<span class="card-row__tag--code">Native Detector:</span>
+							<span class="card-row__tag--code">- Detected modified Hosts file</span>
+							<span class="card-row__tag--code">Disclosure:</span>
+							<span class="card-row__tag--code">- CRIT Why is your hosts file so big?</span>
+						</div>
+						<md-switch icons id="spoof_hosts"></md-switch>
 						<md-ripple></md-ripple>
 					</div>
 
@@ -597,7 +613,7 @@
 					</div>
 				</div>
 
-				<p class="section-label">Spoof Android Verified Boot Hash</p>
+				<p class="section-label">Spoof Android Verified Boot Hash Property</p>
 				<div class="card-group">
 					<div class="card-row">
 						<div class="field-stack">
@@ -665,9 +681,10 @@
 					<div class="card-row">
 						<div class="card-row__body">
 							<span class="card-row__title">Spoof /system/lib64/libstagefright.so</span>
-							<span class="card-row__sub">Custom ROMs use a custom libstagefright.so</span>
-							<!-- <span class="card-row__tag--code">Example of detections:</span> -->
-							<!-- <span class="card-row__tag--code"></span> -->
+							<span class="card-row__sub">Some Custom ROMs use a custom libstagefright.so</span>
+							<span class="card-row__tag--code">Example of detections:</span>
+							<span class="card-row__tag--code">Duck Detector:</span>
+							<span class="card-row__tag--code">- Native symbol trace</span>
 						</div>
 						<md-switch icons id="spoof_libstagefright"></md-switch>
 						<md-ripple></md-ripple>
@@ -741,11 +758,19 @@
 
 					<div class="card-row">
 						<div class="card-row__body">
-							<span class="card-row__title">Fix /debug_ramdisk Inconsistencies</span>
+							<span class="card-row__title">Reset Settings</span>
 						</div>
-						<md-switch icons id="fix_debug_ramdisk_inconsistencies"></md-switch>
+						<md-filled-button id="reset_settings">Reset</md-filled-button>
 						<md-ripple></md-ripple>
 					</div>
+					<md-dialog id="dialog">
+						<div slot="headline">Confirm action</div>
+						<form slot="content" id="form-id" method="dialog">Are you sure?</form>
+						<div slot="actions">
+							<md-text-button form="form-id" value="cancel">No</md-text-button>
+							<md-text-button form="form-id" value="confirm">Yes</md-text-button>
+						</div>
+					</md-dialog>
 				</div>
 			</section>
 
@@ -780,6 +805,31 @@
 					</div>
 				</div>
 
+				<p class="section-label">Manual Mode</p>
+				<div class="card-group">
+					<div class="card-row">
+						<div class="card-row__body">
+							<span class="card-row__title">Important Notes:</span>
+							<span class="card-row__sub">Only effective for umounted process with uid ≥ 10.000</span>
+							<span class="card-row__title">Kernel Umount</span>
+							<span class="card-row__sub">Adding sus mounts to umount list via built-in KernelSU kernel umount</span>
+							<span class="card-row__tag--code">Example:</span>
+							<span class="card-row__tag--code">/system/etc/hosts</span>
+						</div>
+						<md-ripple></md-ripple>
+					</div>
+
+					<div class="card-group sus-card">
+						<div class="snap-item">
+							<md-filled-text-field id="custom_kernel_umount_text_field" class="content" type="textarea" rows="12" label="MOUNTS"></md-filled-text-field>
+						</div>
+
+						<div class="sus-footer">
+							<md-filled-button id="kernel_umount_apply_button">APPLY</md-filled-button>
+						</div>
+					</div>
+				</div>
+
 				<p class="section-label">Module Control</p>
 				<div class="card-group">
 					<div class="field-stack">
@@ -792,11 +842,6 @@
 			</section>
 
 			<section class="tab-panel" data-panel="info">
-				<p class="section-label">Enabled Features In Kernel</p>
-				<div class="card-group">
-					<div class="mono-block enabled-config" id="kernel-features-container"></div>
-				</div>
-
 				<p class="section-label">BRENE Logs</p>
 				<div class="card-group">
 					<div class="mono-block enabled-config" id="logs"></div>
