@@ -1,0 +1,145 @@
+name: Sync upstream and release adbfix
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sync-and-release:
+    runs-on: ubuntu-latest
+    env:
+      UPSTREAM_REPO: rrr333nnn333/BRENE
+      FORK_REPO: jus1-c/BRENE
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Read latest upstream release
+        id: upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$(gh api "repos/${UPSTREAM_REPO}/releases/latest" --jq .tag_name)"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "fork_tag=${tag}-adbfix" >> "$GITHUB_OUTPUT"
+
+      - name: Stop when fork release already exists
+        id: existing
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/${{ steps.upstream.outputs.fork_tag }}"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Overlay upstream files and re-apply fork patches
+        if: steps.existing.outputs.exists == 'false'
+        run: |
+          # Fetch upstream tag
+          git fetch "https://github.com/${UPSTREAM_REPO}.git" \
+            "refs/tags/${{ steps.upstream.outputs.tag }}:refs/tags/upstream/${{ steps.upstream.outputs.tag }}"
+
+          # Checkout upstream module/ and CHANGELOG.md over our working tree.
+          # This replaces all upstream-owned files with their new versions,
+          # avoiding merge conflicts entirely.
+          git checkout "upstream/${{ steps.upstream.outputs.tag }}" -- module/ CHANGELOG.md
+
+          # Restore fork-only files that upstream doesn't have
+          git checkout HEAD -- scripts/apply-adbfix.py
+
+          # Re-apply fork ADB mapping on top of fresh upstream
+          python3 scripts/apply-adbfix.py
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Set fork metadata and package module
+        if: steps.existing.outputs.exists == 'false'
+        id: package
+        env:
+          UPSTREAM_TAG: ${{ steps.upstream.outputs.tag }}
+          FORK_TAG: ${{ steps.upstream.outputs.fork_tag }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          upstream_tag = os.environ["UPSTREAM_TAG"]
+          fork_tag = os.environ["FORK_TAG"]
+          prop = Path("module/module.prop")
+          text = prop.read_text()
+          upstream_version_code = int(re.search(r"^versionCode=(\d+)$", text, flags=re.M).group(1))
+          version_code = upstream_version_code * 100
+          text = re.sub(r"^version=.*$", f"version={fork_tag}", text, flags=re.M)
+          text = re.sub(r"^versionCode=.*$", f"versionCode={version_code}", text, flags=re.M)
+          text = re.sub(
+              r"^updateJson=.*$",
+              "updateJson=https://raw.githubusercontent.com/jus1-c/BRENE/main/update.json",
+              text,
+              flags=re.M,
+          )
+          # Ensure module name has no leading dot
+          text = re.sub(r"^name=\.", "name=", text, flags=re.M)
+          prop.write_text(text)
+
+          update = {
+              "version": fork_tag,
+              "versionCode": version_code,
+              "zipUrl": f"https://github.com/jus1-c/BRENE/releases/download/{fork_tag}/BRENE-{fork_tag}.zip",
+              "changelog": "https://raw.githubusercontent.com/jus1-c/BRENE/main/CHANGELOG.md",
+          }
+          Path("update.json").write_text(json.dumps(update, indent="\t") + "\n")
+
+          changelog = Path("CHANGELOG.md")
+          changelog.write_text(changelog.read_text() + f"\n- fork: sync {upstream_tag} as {fork_tag}\n")
+          PY
+          asset="BRENE-${{ steps.upstream.outputs.fork_tag }}.zip"
+          (cd module && zip -qr "../${asset}" .)
+          echo "asset=${asset}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate fork source and archive
+        if: steps.existing.outputs.exists == 'false'
+        run: |
+          python3 -m py_compile scripts/apply-adbfix.py
+          grep -q 'config_usb_debugging' module/utils.sh
+          grep -q 'config_wireless_debugging' module/utils.sh
+          grep -q 'adb_spoof_log' module/utils.sh
+          ! grep -q 'svc usb\|setprop sys.usb' module/utils.sh
+          test -f module/module.prop
+          test -f update.json
+          unzip -t "${{ steps.package.outputs.asset }}"
+          unzip -l "${{ steps.package.outputs.asset }}" | grep -q 'module.prop'
+          # Guard against unresolved merge markers
+          ! grep -rq '<<<<<<< \|=======\|>>>>>>> ' module/ update.json CHANGELOG.md || {
+            echo "ERROR: unresolved merge markers found"; exit 1; }
+
+      - name: Commit fork metadata
+        if: steps.existing.outputs.exists == 'false'
+        run: |
+          git add module/ update.json CHANGELOG.md scripts/apply-adbfix.py
+          if ! git diff --cached --quiet; then
+            git commit -m "fork: release ${{ steps.upstream.outputs.fork_tag }}"
+            git push origin HEAD:main
+          fi
+
+      - name: Create release and upload module
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.upstream.outputs.fork_tag }}" \
+            "${{ steps.package.outputs.asset }}" \
+            --title "BRENE ${{ steps.upstream.outputs.fork_tag }}" \
+            --generate-notes

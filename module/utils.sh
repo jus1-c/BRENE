@@ -38,6 +38,11 @@ resetprop_n() {
 	resetprop -n "$1" "$2"
 }
 
+adb_spoof_log() {
+	[[ "${config_brene_logs}" == "1" ]] || return
+	echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ADB] $*" >> "${PERSISTENT_DIR}/logs.txt"
+}
+
 if_prop_exits_resetprop_n() {
 	local PROP_NAME=$1
 	local NEW_VALUE=$2
@@ -59,7 +64,6 @@ spoof_android_system_properties() {
 	if_prop_exits_resetprop_n "ro.secure" "1"
 	if_prop_exits_resetprop_n "ro.debuggable" "0"
 	if_prop_exits_resetprop_n "ro.adb.secure" "1"
-	if_prop_exits_resetprop_n "persist.sys.usb.config" "mtp"
 	if_prop_exits_resetprop_n "ro.boot.verifiedbootstate" "green"
 	if_prop_exits_resetprop_n "ro.boot.flash.locked" "1"
 	if_prop_exits_resetprop_n "ro.boot.veritymode" "enforcing"
@@ -78,8 +82,27 @@ spoof_android_system_properties() {
 	if_prop_exits_resetprop_n "vendor.boot.verifiedbootstate" "green"
 	if_prop_exits_resetprop_n "ro.vendor.boot.warranty_bit" "0"
 	if_prop_exits_resetprop_n "ro.vendor.warranty_bit" "0"
-	if_prop_exits_resetprop_n "init.svc.adbd" "stopped"
-	if_prop_exits_resetprop_n "init.svc_debug_pid.adbd" ""
+	# ADB/USB lifecycle props are conditional on debug switches.
+	# Android's USB framework and Gadget HAL must remain the sole owner
+	# of adbd and FunctionFS state when debugging is enabled.
+	if [[ "${config_usb_debugging}" == "1" ]]; then
+		adb_spoof_log "usb=preserve init=$(getprop init.svc.adbd) usb=$(getprop sys.usb.config)"
+	else
+		adb_spoof_log "usb=spoof before init=$(getprop init.svc.adbd) usb=$(getprop persist.sys.usb.config)"
+		resetprop_n "init.svc.adbd" "stopped"
+		resetprop_n "init.svc_debug_pid.adbd" ""
+		resetprop_n "persist.sys.usb.config" "mtp"
+		adb_spoof_log "usb=spoof after init=$(getprop init.svc.adbd) usb=$(getprop persist.sys.usb.config)"
+	fi
+
+	if [[ "${config_wireless_debugging}" == "1" ]]; then
+		adb_spoof_log "wireless=preserve tls=$(getprop service.adb.tls.port)"
+	else
+		adb_spoof_log "wireless=spoof before tls=$(getprop service.adb.tls.port)"
+		resetprop -d "service.adb.tcp.port"
+		adb_spoof_log "wireless=spoof after tls=$(getprop service.adb.tls.port)"
+	fi
+
 	# if_prop_exits_resetprop_n "ro.oem_unlock_supported" "0"
 
 	# Realme
@@ -148,8 +171,8 @@ spoof_android_system_properties() {
 	resetprop -d "vendor.boot.verifiedbooterror"
 	resetprop -d "crashrecovery.rescue_boot_count"
 
-	resetprop -d "service.adb.root"
-	resetprop -d "service.adb.tcp.port"
+	# service.adb.root and service.adb.tcp.port are handled by the
+	# conditional wireless debugging block above.
 
 	# https://android.googlesource.com/platform/frameworks/base/+/bab174bf0883cbc5039a2860a1af706a56fe6ca0%5E%21/
 	if [[ "$(resetprop ro.build.version.sdk)" -ge "36" ]]; then

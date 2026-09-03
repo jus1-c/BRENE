@@ -12,3 +12,5 @@
 - improve: Hide Suspicious Injections: add official OverlayFS MetaModule support
 - add: new incompatible module
 - bump: version to v0.0.65
+
+- fork: sync v0.0.65 as v0.0.65-adbfix
