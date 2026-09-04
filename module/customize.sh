@@ -18,9 +18,6 @@ echo "██████╔╝██║  ██║███████╗██
 echo "╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚══════╝"
 echo ""
 
-# Hot Install Support
-export MODULE_HOT_INSTALL_REQUEST="true"
-
 # Check Compatibility
 if [[ -z "${KSU}" ]]; then
 	abort '[❌] SuSFS is only for KernelSU or forks!'
@@ -57,7 +54,7 @@ fi
 susfs_variant=$(${SUSFS_BIN} show variant)
 susfs_features_number=$(${SUSFS_BIN} show enabled_features | wc -l)
 description="A SuSFS/KernelSU module for SuSFS patched kernels"
-status="Waiting reboot ⏱️"
+status="Waiting for reboot ⏱️"
 ${KSU_BIN} module config set override.description "[Status: ${status} | SuSFS: ${susfs_version} (${susfs_variant}) | SuSFS Features: ${susfs_features_number} enabled] ${description}"
 
 # Disable other SuSFS modules
@@ -104,23 +101,42 @@ fi
 # Remove fake_files folder
 [[ -d "${PERSISTENT_DIR}/fake_files" ]] && rm -rf "${PERSISTENT_DIR}/fake_files"
 
-# Disable outdated modules
-# echo "[✅] Disabling outdated modules"
-# modules="
 # zygisk_shamiko
 # zygisk-assistant
 # zygisk-maphide
 # zygisk_nohello
-# playintegrity
-# integritybox
-# IntegrityBox
-# Integrity-Box
 # safetynet-fix
 # MagiskHidePropsConf
 # tsupport
 # tsupport-advance
 # BetterKnownInstalled
-# "
-# for i in ${modules}; do
-# 	[[ -e "/data/adb/modules/${i}" ]] && touch "/data/adb/modules/${i}/remove"
-# done
+
+# Drop useless modules
+modules="
+ReSuSFS
+"
+for module in ${modules}; do
+	[[ -e "/data/adb/modules/${module}" ]] && touch "/data/adb/modules/${module}/remove"
+done
+
+if [[ -e "/data/adb/modules/playintegrityfix" ]] && grep -q "Integrity-Box" "/data/adb/modules/playintegrityfix/module.prop"; then
+	touch "/data/adb/modules/playintegrityfix/remove"
+fi
+
+# Enable WebUI without reboot
+MODDIR="/data/adb/modules/brene"
+MODULES_PATH="/data/adb/modules"
+
+rm -rf "${MODDIR}"
+mv "${MODPATH}" "${MODULES_PATH}"
+
+mkdir -p "${MODPATH}"
+cp "${MODDIR}/module.prop" "${MODPATH}"
+
+(
+	sleep 3
+	rm -rf "${MODPATH}"
+	rm "${MODDIR}/update"
+) & # fork in background
+
+echo '[✅] WebUI is ready!'
