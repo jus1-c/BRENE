@@ -101,37 +101,12 @@ fi
 # Remove fake_files folder
 [[ -d "${PERSISTENT_DIR}/fake_files" ]] && rm -rf "${PERSISTENT_DIR}/fake_files"
 
-# zygisk_shamiko
-# zygisk-assistant
-# zygisk-maphide
-# zygisk_nohello
-# safetynet-fix
-# MagiskHidePropsConf
-# tsupport
-# tsupport-advance
-# BetterKnownInstalled
-
-# Drop useless modules
-modules="
-ReSuSFS
-"
-for module in ${modules}; do
-	[[ -e "/data/adb/modules/${module}" ]] && touch "/data/adb/modules/${module}/remove"
-done
-
-if [[ -e "/data/adb/modules/playintegrityfix" ]] && grep -q "Integrity-Box" "/data/adb/modules/playintegrityfix/module.prop"; then
-	touch "/data/adb/modules/playintegrityfix/remove"
-fi
-
 # Enable WebUI without reboot
 MODDIR="/data/adb/modules/brene"
 MODULES_PATH="/data/adb/modules"
 
 rm -rf "${MODDIR}"
-mv "${MODPATH}" "${MODULES_PATH}"
-
-mkdir -p "${MODPATH}"
-cp "${MODDIR}/module.prop" "${MODPATH}"
+cp -rp "${MODPATH}" "${MODULES_PATH}"
 
 (
 	sleep 3

@@ -1,7 +1,7 @@
 id=brene
 name=BRENE - SuSFS
-version=v0.0.66-adbfix
-versionCode=6600
+version=v0.0.67-adbfix
+versionCode=6700
 author=rrr333nnn333, simonpunk, KOWX712
 description=A SuSFS/KernelSU module for SuSFS patched kernels
 updateJson=https://raw.githubusercontent.com/jus1-c/BRENE/main/update.json

@@ -75,6 +75,9 @@ const configs = [
 	{ id: 'fix_data_local_tmp_inconsistencies' },
 	{ id: 'spoof_system_properties' },
 	{ id: 'spoof_system_properties_repeat' },
+	{ id: 'spoof_fingerprint_properties' },
+	{ id: 'spoof_utc_properties' },
+	{ id: 'spoof_date_properties' },
 
 	{ id: 'paths_hiding__non_standard_sdcard' },
 	{ id: 'paths_hiding__non_standard_sdcard_android' },
@@ -198,26 +201,6 @@ exec('ksud module list').then((result) => {
 	})
 })
 
-// Incompatible Modules
-exec('ksud module list').then((result) => {
-	if (result.errno !== 0) return
-
-	const container = document.querySelector('#incompatible-modules')
-	const modules = JSON.parse(result.stdout)
-	const moduleIds = modules.map((mod) => mod.id)
-	const cardRows = container.querySelectorAll('.card-row')
-
-	cardRows.forEach((row) => {
-		const moduleKey = row.getAttribute('data-module')
-		const statusSpan = row.querySelector('.status-text')
-
-		if (moduleIds.includes(moduleKey)) {
-			statusSpan.innerText = 'Status: Installed'
-			statusSpan.style.color = '#ff0000be'
-		}
-	})
-})
-
 // Load enabled features
 exec('susfs show enabled_features').then((result) => {
 	const container = document.getElementById('kernel-features-container')
@@ -226,7 +209,7 @@ exec('susfs show enabled_features').then((result) => {
 		container.innerText = 'Failed to load enabled features'
 		return
 	}
-	container.innerText = result.stdout.replaceAll('CONFIG_KSU_SUSFS_', '').replaceAll('_', ' ')
+	container.innerText = result.stdout.replaceAll('CONFIG_KSU_SUSFS_', '')
 })
 
 // Load logs
@@ -360,10 +343,10 @@ exec(`cat ${PERSISTENT_DIR}/config.sh`).then((result) => {
 	})
 })
 
-// KSU Modules toggles
+// KSU Module Control
 ;(async () => {
-	const enableSwitch = document.getElementById('enable_ksu_modules')
-	const disableSwitch = document.getElementById('disable_ksu_modules')
+	const enableButton = document.getElementById('enable_ksu_modules')
+	const disableButton = document.getElementById('disable_ksu_modules')
 
 	const toggleAllModules = (enable) => {
 		exec(`
@@ -375,8 +358,8 @@ exec(`cat ${PERSISTENT_DIR}/config.sh`).then((result) => {
 		})
 	}
 
-	enableSwitch.addEventListener('click', () => toggleAllModules(true))
-	disableSwitch.addEventListener('click', () => toggleAllModules(false))
+	enableButton.addEventListener('click', () => toggleAllModules(true))
+	disableButton.addEventListener('click', () => toggleAllModules(false))
 })()
 
 // Custom Uname buttons

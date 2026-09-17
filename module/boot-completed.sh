@@ -13,20 +13,6 @@ CUSTOM_ROM_NAMES="lineage|infinity|evolution|crdroid|mistos|axion|pixelos|rising
 # Load config
 [[ -e "${PERSISTENT_DIR}/config.sh" ]] && source "${PERSISTENT_DIR}/config.sh"
 
-# Drop useless modules
-modules="
-ReSuSFS
-"
-for module in ${modules}; do
-	[[ -e "/data/adb/modules/${module}" ]] && touch "/data/adb/modules/${module}/remove"
-done
-
-if [[ -e "/data/adb/modules/playintegrityfix" ]] && grep -q "Integrity-Box" "/data/adb/modules/playintegrityfix/module.prop"; then
-	touch "/data/adb/modules/playintegrityfix/remove"
-	reboot
-fi
-[[ -e "/data/adb/modules/ReSuSFS" ]] && reboot
-
 # Update Description
 susfs_version=$(${SUSFS_BIN} show version)
 susfs_variant=$(${SUSFS_BIN} show variant)
@@ -43,16 +29,22 @@ fi
 # SU Compat
 if [[ "${config_su_compat}" == "1" ]]; then
 	${KSU_BIN} feature set su_compat 1
+elif [[ "${config_su_compat}" == "0" ]]; then
+	${KSU_BIN} feature set su_compat 0
 fi
 
 # Kernel Umount
 if [[ "${config_kernel_umount}" == "1" ]]; then
 	${KSU_BIN} feature set kernel_umount 1
+elif [[ "${config_kernel_umount}" == "0" ]]; then
+	${KSU_BIN} feature set kernel_umount 0
 fi
 
 # Hide SELinux modification
 if [[ "${config_selinux_hide}" == "1" ]]; then
 	${KSU_BIN} feature set selinux_hide 1
+elif [[ "${config_selinux_hide}" == "0" ]]; then
+	${KSU_BIN} feature set selinux_hide 0
 fi
 
 ${KSU_BIN} feature save
@@ -114,27 +106,34 @@ if [[ "${config_pif_props}" == "1" ]]; then
 	done
 fi
 
-# Spoof Android System Properties
+## System Property Spoofing
+# Spoof System Properties
 if [[ "${config_spoof_system_properties}" == "1" ]]; then
-	spoof_android_system_properties
+	spoof_system_properties
+fi
+# Spoof Fingerprint Properties
+if [[ "${config_spoof_fingerprint_properties}" == "1" ]]; then
+	spoof_fingerprint_properties
+fi
+# Spoof UTC Properties
+if [[ "${config_spoof_utc_properties}" == "1" ]]; then
+	spoof_utc_properties
+fi
+# Spoof Date Properties
+if [[ "${config_spoof_date_properties}" == "1" ]]; then
+	spoof_date_properties
+fi
+# Spoof System Properties Every Minute
+if [[ "${config_spoof_system_properties_repeat}" == "1" ]]; then
+	while true; do
+		sleep 60
+		spoof_system_properties
+	done &
 fi
 
 #### Hide some sus paths, effective only for processes that are marked umounted with uid >= 10000 ####
 ## First we need to wait until files are accessible in /storage/emulated/0 ##
 until [[ -e "/storage/emulated/0/Android" ]]; do sleep 1; done
-
-# Spoof Android System Properties
-if [[ "${config_spoof_system_properties}" == "1" ]]; then
-	spoof_android_system_properties
-fi
-
-# Spoof Android System Properties Every Minute
-if [[ "${config_spoof_system_properties_repeat}" == "1" ]]; then
-	while true; do
-		sleep 60
-		spoof_android_system_properties
-	done &
-fi
 
 ## Remove the '..5.u.S' leftover ##
 ## THe reason why this sus file is created is because users have grant the MANAGE_EXTERNAL_STORAGE permission for the apps that detecting sus files in /storage/emulated/0, or in /storage/emulated/0/Android/data where the apps are exploiting the unicode bugs to create files arbitrary.
@@ -327,8 +326,6 @@ fi
 
 # Umount Suspicious Mounts
 if [[ "${config_umount_suspicious_mounts}" == "1" ]]; then
-	${KSU_BIN} feature set kernel_umount 1
-
 	## Don't forget to notify KernelSU that all ksu modules all mounted and ready ##
 	${KSU_BIN} kernel notify-module-mounted
 
