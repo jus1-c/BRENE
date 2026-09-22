@@ -17,13 +17,14 @@ CUSTOM_ROM_NAMES="lineage|infinity|evolution|crdroid|mistos|axion|pixelos|rising
 susfs_version=$(${SUSFS_BIN} show version)
 susfs_variant=$(${SUSFS_BIN} show variant)
 susfs_features_number=$(${SUSFS_BIN} show enabled_features | wc -l)
+kernel_version=$(cat /proc/version | awk '{print $3}' | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
 description="A SuSFS/KernelSU module for SuSFS patched kernels"
 if [[ "${susfs_version}" == "v2"* ]]; then
 	status="Active ✅"
-	${KSU_BIN} module config set override.description "[Status: ${status} | SuSFS: ${susfs_version} (${susfs_variant}) | SuSFS Features: ${susfs_features_number} enabled] ${description}"
+	${KSU_BIN} module config set override.description "[Status: ${status} | Kernel Version: ${kernel_version} | SuSFS: ${susfs_version} (${susfs_variant}) | SuSFS Features: ${susfs_features_number} enabled] ${description}"
 else
 	status="Not Working ❌"
-	${KSU_BIN} module config set override.description "[Status: ${status} | SuSFS: ${susfs_version} (${susfs_variant}) | SuSFS Features: ${susfs_features_number} enabled] ${description}"
+	${KSU_BIN} module config set override.description "[Status: ${status} | Kernel Version: ${kernel_version} | SuSFS: ${susfs_version} (${susfs_variant}) | SuSFS Features: ${susfs_features_number} enabled] ${description}"
 fi
 
 # SU Compat
@@ -106,6 +107,10 @@ if [[ "${config_pif_props}" == "1" ]]; then
 	done
 fi
 
+#### Hide some sus paths, effective only for processes that are marked umounted with uid >= 10000 ####
+## First we need to wait until files are accessible in /storage/emulated/0/Android ##
+until [[ -e "/storage/emulated/0/Android" ]]; do sleep 1; done
+
 ## System Property Spoofing
 # Spoof System Properties
 if [[ "${config_spoof_system_properties}" == "1" ]]; then
@@ -123,6 +128,14 @@ fi
 if [[ "${config_spoof_date_properties}" == "1" ]]; then
 	spoof_date_properties
 fi
+# Spoof OS Security Patch Level Property
+if [[ "${config_spoof_os_security_patch_level_property}" == "1" ]]; then
+	spoof_os_security_patch_level_property
+fi
+# Spoof Vendor Security Patch Level Property
+if [[ "${config_spoof_vendor_security_patch_level_property}" == "1" ]]; then
+	spoof_vendor_security_patch_level_property
+fi
 # Spoof System Properties Every Minute
 if [[ "${config_spoof_system_properties_repeat}" == "1" ]]; then
 	while true; do
@@ -130,10 +143,6 @@ if [[ "${config_spoof_system_properties_repeat}" == "1" ]]; then
 		spoof_system_properties
 	done &
 fi
-
-#### Hide some sus paths, effective only for processes that are marked umounted with uid >= 10000 ####
-## First we need to wait until files are accessible in /storage/emulated/0 ##
-until [[ -e "/storage/emulated/0/Android" ]]; do sleep 1; done
 
 ## Remove the '..5.u.S' leftover ##
 ## THe reason why this sus file is created is because users have grant the MANAGE_EXTERNAL_STORAGE permission for the apps that detecting sus files in /storage/emulated/0, or in /storage/emulated/0/Android/data where the apps are exploiting the unicode bugs to create files arbitrary.
@@ -322,18 +331,6 @@ fi
 # fi
 # EOF
 
-#### Adding sus mounts to umount list via built-in KernelSU kernel umount (not via add_try_umount from old susfs) ####
-
-# Umount Suspicious Mounts
-if [[ "${config_umount_suspicious_mounts}" == "1" ]]; then
-	## Don't forget to notify KernelSU that all ksu modules all mounted and ready ##
-	${KSU_BIN} kernel notify-module-mounted
-
-	cat /proc/1/mountinfo | grep -E "^2[0-9]{9,} .*$|KSU" | awk '{print $5}' | while read -r mount; do
-		${KSU_BIN} kernel umount add -f 2 "${mount}" 2> /dev/null
-	done
-fi
-
 # Hide framework-res.apk
 if [[ "${config_hide_framework_res_apk}" == "1" ]]; then
 	find /system -iname "*framework-res.apk" | while read -r path; do
@@ -358,34 +355,6 @@ if [[ "${config_fix_data_local_tmp_inconsistencies}" == "1" ]]; then
 	# ino -> %i, dev -> %d, nlink -> %h, atime -> %X, mtime -> %Y, ctime -> %Z, size -> %s, blocks -> %b, blksize -> %B
 	# Example: stat -c %i <path>
 	${SUSFS_BIN} add_sus_kstat_statically "${target_folder}" '100' 'default' 'default' '4096' 'default' 'default' 'default' 'default' 'default' 'default' '8' '4096'
-fi
-
-# Hide Suspicious Injections
-if [[ "${config_hide_injections}" == "1" ]]; then
-	if [[ "${config_brene_logs}" == "1" ]]; then
-		{
-			echo ""
-			echo "##########################"
-			echo "Hide Suspicious Injections"
-			echo "##########################"
-		} >> "${PERSISTENT_DIR}/logs.txt"
-	fi
-
-	overlayfs="/data/adb/modules/meta-overlayfs/mnt"
-	magic_mount="/data/adb/modules"
-	[[ -e "${overlayfs}" ]] && path="${overlayfs}" || path="${magic_mount}"
-
-	for module in "${path}"/*; do
-		if [[ -e "${module}/system" ]]; then
-			find "${module}/system" -type f | while read -r file; do
-				brene_sus_map "${file}"
-			done
-		fi
-	done
-
-	find /data/adb/modules -name "*.so" | while read -r file; do
-		brene_sus_map "${file}"
-	done
 fi
 
 resetprop -c --force
