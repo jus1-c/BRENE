@@ -36,9 +36,13 @@ UPSTREAM_ADB_PROPS = '''\tif_prop_exits_resetprop_n "ro.adb.secure" "1"
 FORK_ADB_PROPS = '''\tif_prop_exits_resetprop_n "ro.adb.secure" "1"
 \tif_prop_exits_resetprop_n "ro.boot.verifiedbootstate" "green"'''
 
-UPSTREAM_INIT_SVC = '''\tif_prop_exits_resetprop_n "init.svc.adbd" "stopped"
+UPSTREAM_INIT_SVC_COMMENTED_OEM = '''\tif_prop_exits_resetprop_n "init.svc.adbd" "stopped"
 \tif_prop_exits_resetprop_n "init.svc_debug_pid.adbd" ""
 \t# if_prop_exits_resetprop_n "ro.oem_unlock_supported" "0"'''
+
+UPSTREAM_INIT_SVC_ACTIVE_OEM = '''\tif_prop_exits_resetprop_n "init.svc.adbd" "stopped"
+\tif_prop_exits_resetprop_n "init.svc_debug_pid.adbd" ""
+\tif_prop_exits_resetprop_n "ro.oem_unlock_supported" "0"'''
 
 FORK_CONDITIONAL_ADB = '''\t# ADB/USB lifecycle props are conditional on debug switches.
 \t# Android's USB framework and Gadget HAL must remain the sole owner
@@ -89,6 +93,18 @@ def replace_once(source: str, old: str, new: str, label: str) -> str:
     return source.replace(old, new)
 
 
+def replace_once_any(source: str, olds: list[str], new: str, label: str) -> str:
+    """Replace exactly one supported variant. Skip if already applied."""
+    if new in source:
+        return source
+    matches = [old for old in olds if old in source]
+    if len(matches) != 1:
+        raise RuntimeError(
+            f"cannot apply {label}: expected exactly one matching variant, found {len(matches)}"
+        )
+    return source.replace(matches[0], new)
+
+
 def set_config_default(source: str, name: str, value: int) -> str:
     """Set a config key to a specific value. Idempotent."""
     target_line = f"{name}={value}"
@@ -108,7 +124,12 @@ def main() -> None:
     source = UTILS.read_text()
     source = replace_once(source, UPSTREAM_RESETPROP_N, FORK_RESETPROP_N_WITH_LOG, "ADB audit logger")
     source = replace_once(source, UPSTREAM_ADB_PROPS, FORK_ADB_PROPS, "remove hardcoded persist.sys.usb.config")
-    source = replace_once(source, UPSTREAM_INIT_SVC, FORK_CONDITIONAL_ADB, "ADB switch mapping")
+    source = replace_once_any(
+        source,
+        [UPSTREAM_INIT_SVC_COMMENTED_OEM, UPSTREAM_INIT_SVC_ACTIVE_OEM],
+        FORK_CONDITIONAL_ADB,
+        "ADB switch mapping",
+    )
     source = replace_once(source, UPSTREAM_ADB_DELETE, FORK_ADB_DELETE_COMMENT, "remove unconditional service.adb deletions")
     UTILS.write_text(source)
 
