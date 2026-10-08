@@ -185,16 +185,33 @@ spoof_date_properties() {
 }
 
 spoof_os_security_patch_level_property() {
-	if_prop_exits_resetprop_n "ro.build.version.security_patch" "${CURRENT_YEAR}-${CURRENT_MONTH}-01"
+	if [[ "${CURRENT_DAY}" -ge 5 ]]; then
+		if_prop_exits_resetprop_n "ro.build.version.security_patch" "${CURRENT_YEAR}-${CURRENT_MONTH}-01"
+	else
+		if [[ "${CURRENT_MONTH}" -ge 2 ]]; then
+			if_prop_exits_resetprop_n "ro.build.version.security_patch" "${CURRENT_YEAR}-$(printf "%02d" "$((CURRENT_MONTH - 1))")-01"
+		else
+			if_prop_exits_resetprop_n "ro.build.version.security_patch" "$((CURRENT_YEAR - 1))-12-01"
+		fi
+	fi
 }
 
 spoof_vendor_security_patch_level_property() {
-	if_prop_exits_resetprop_n "ro.vendor.build.security_patch" "${CURRENT_YEAR}-${CURRENT_MONTH}-05"
+	if [[ "${CURRENT_DAY}" -ge 5 ]]; then
+		if_prop_exits_resetprop_n "ro.vendor.build.security_patch" "${CURRENT_YEAR}-${CURRENT_MONTH}-05"
+	else
+		if [[ "${CURRENT_MONTH}" -ge 2 ]]; then
+			if_prop_exits_resetprop_n "ro.vendor.build.security_patch" "${CURRENT_YEAR}-$(printf "%02d" "$((CURRENT_MONTH - 1))")-05"
+		else
+			if_prop_exits_resetprop_n "ro.vendor.build.security_patch" "$((CURRENT_YEAR - 1))-12-05"
+		fi
+	fi
 }
 
 update_config_date() {
-	sed -i "s/^CURRENT_YEAR=.*/CURRENT_YEAR='$(date +%Y)'/" ${PERSISTENT_DIR}/config.sh
-	sed -i "s/^CURRENT_MONTH=.*/CURRENT_MONTH='$(date +%m)'/" ${PERSISTENT_DIR}/config.sh
+	sed -i "s/^CURRENT_YEAR=.*/CURRENT_YEAR='$(busybox date +%Y)'/" ${PERSISTENT_DIR}/config.sh
+	sed -i "s/^CURRENT_MONTH=.*/CURRENT_MONTH='$(busybox date +%m)'/" ${PERSISTENT_DIR}/config.sh
+	sed -i "s/^CURRENT_DAY=.*/CURRENT_DAY='$(busybox date +%d)'/" ${PERSISTENT_DIR}/config.sh
 }
 
 brene_sus_path() {
@@ -215,6 +232,12 @@ brene_sus_map() {
 brene_set_uname() {
 	if ${SUSFS_BIN} set_uname "$1" "$2" && [[ "${config_brene_logs}" == "1" ]]; then
 		echo "[set_uname]: $1 $2" >> "${PERSISTENT_DIR}/logs.txt"
+	fi
+}
+brene_open_redirect() {
+	brene_clone_perm "$2" "$1"
+	if ${SUSFS_BIN} add_open_redirect "$1" "$2" "$3" && [[ "${config_brene_logs}" == "1" ]]; then
+		echo "[open_redirect]: $1 $2 $3" >> "${PERSISTENT_DIR}/logs.txt"
 	fi
 }
 brene_kernel_umount() {

@@ -18,16 +18,15 @@ update_config_date
 # Update Description
 susfs_total_features=9
 susfs_version=$(${SUSFS_BIN} show version)
-susfs_variant=$(${SUSFS_BIN} show variant)
 susfs_features_number=$(${SUSFS_BIN} show enabled_features | wc -l)
 kernel_version=$(cat /proc/version | awk '{print $3}' | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
 description="A SuSFS/KernelSU module for SuSFS patched kernels"
 if [[ "${susfs_version}" == "v2"* ]]; then
 	status="Active ✅"
-	${KSU_BIN} module config set override.description "[Status: ${status} | Kernel Version: ${kernel_version} | SuSFS: ${susfs_version} (${susfs_variant}) | SuSFS Features: ${susfs_features_number}/${susfs_total_features} enabled] ${description}"
+	${KSU_BIN} module config set override.description "[Status: ${status} | Kernel Version: ${kernel_version} | SuSFS: ${susfs_version} | SuSFS Kernel Features: ${susfs_features_number}/${susfs_total_features} enabled] ${description}"
 else
 	status="Not Working ❌"
-	${KSU_BIN} module config set override.description "[Status: ${status} | Kernel Version: ${kernel_version} | SuSFS: ${susfs_version} (${susfs_variant}) | SuSFS Features: ${susfs_features_number}/${susfs_total_features} enabled] ${description}"
+	${KSU_BIN} module config set override.description "[Status: ${status} | Kernel Version: ${kernel_version} | SuSFS: ${susfs_version} | SuSFS Kernel Features: ${susfs_features_number}/${susfs_total_features} enabled] ${description}"
 fi
 
 # SU Compat
@@ -108,6 +107,55 @@ if [[ "${config_pif_props}" == "1" ]]; then
 	resetprop | grep -iE "pihook|pixelprops|spoof" | awk -F'[][]' '{print $2}' | while read -r prop; do
 		resetprop -d -p "${prop}"
 	done
+fi
+
+# Spoof /system/lib64/libstagefright.so
+if [[ "${config_spoof_libstagefright}" == "1" ]]; then
+	path=/system/lib64/libstagefright.so
+	file_name=$(basename "${path}")
+	fake_file_path="${PERSISTENT_DIR}/fake_files/${file_name}"
+
+	[[ ! -d "${PERSISTENT_DIR}/fake_files" ]] && mkdir -p "${PERSISTENT_DIR}/fake_files"
+	[[ ! -f "${fake_file_path}" ]] && {
+		touch "${fake_file_path}"
+	}
+
+	brene_open_redirect "${path}" "${fake_file_path}" '3'
+fi
+
+# Hide LineageOS Strings
+if [[ "${config_hide_lineage_strings}" == "1" ]]; then
+	find /system /system_ext /vendor /product \( -iname "*sepolicy.cil" -o -iname "*file_contexts" \) | while read -r path; do
+		file_name=$(basename "${path}")
+		fake_file_path="${PERSISTENT_DIR}/fake_files/${file_name}"
+
+		[[ ! -d "${PERSISTENT_DIR}/fake_files" ]] && mkdir -p "${PERSISTENT_DIR}/fake_files"
+		[[ ! -f "${fake_file_path}" ]] && {
+			touch "${fake_file_path}"
+		}
+
+		brene_open_redirect "${path}" "${fake_file_path}" '3'
+	done
+
+	find /system /system_ext /vendor /product -iname "*.rc" | while read -r path; do
+		if grep -iq "lineage" "${path}"; then
+			file_name=$(basename "${path}")
+			fake_file_path="${PERSISTENT_DIR}/fake_files/${file_name}"
+
+			[[ ! -d "${PERSISTENT_DIR}/fake_files" ]] && mkdir -p "${PERSISTENT_DIR}/fake_files"
+			[[ ! -f "${fake_file_path}" ]] && {
+				touch "${fake_file_path}"
+			}
+
+			brene_open_redirect "${path}" "${fake_file_path}" '3'
+		fi
+	done
+
+	path=/system_ext/etc/permissions/Updater.xml
+	file_name=$(basename "${path}")
+	fake_file_path="${PERSISTENT_DIR}/fake_files/${file_name}"
+	[[ ! -f "${fake_file_path}" ]] && touch "${fake_file_path}"
+	brene_open_redirect "${path}" "${fake_file_path}" '3'
 fi
 
 #### Hide some sus paths, effective only for processes that are marked umounted with uid >= 10000 ####
@@ -300,6 +348,16 @@ if [[ -e "${PERSISTENT_DIR}/custom_kernel_umount.txt" ]]; then
 
 		brene_kernel_umount "${i}"
 	done < "${PERSISTENT_DIR}/custom_kernel_umount.txt"
+fi
+
+# Load custom_open_redirect.txt
+if [[ -e "${PERSISTENT_DIR}/custom_open_redirect.txt" ]]; then
+	while read -r path new_path uid_scheme; do
+		# Skip empty lines or comments
+		[[ -z "${path}" || "${path}" == "#"* ]] && continue
+
+		brene_open_redirect "${path}" "${new_path}" "${uid_scheme}"
+	done < "${PERSISTENT_DIR}/custom_open_redirect.txt"
 fi
 
 #### Hide the mmapped real file from various maps in /proc/self/, effective only for processes that are marked umounted with uid >= 10000 ####

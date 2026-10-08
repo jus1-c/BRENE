@@ -52,12 +52,11 @@ fi
 
 # Reset module description
 susfs_total_features=9
-susfs_variant=$(${SUSFS_BIN} show variant)
 susfs_features_number=$(${SUSFS_BIN} show enabled_features | wc -l)
 kernel_version=$(cat /proc/version | awk '{print $3}' | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
 description="A SuSFS/KernelSU module for SuSFS patched kernels"
 status="Waiting for reboot ⏱️"
-${KSU_BIN} module config set override.description "[Status: ${status} | Kernel Version: ${kernel_version} | SuSFS: ${susfs_version} (${susfs_variant}) | SuSFS Features: ${susfs_features_number}/${susfs_total_features} enabled] ${description}"
+${KSU_BIN} module config set override.description "[Status: ${status} | Kernel Version: ${kernel_version} | SuSFS: ${susfs_version} | SuSFS Kernel Features: ${susfs_features_number}/${susfs_total_features} enabled] ${description}"
 
 # Disable other SuSFS modules
 [[ -e "${KSU_MODULES_DIR}/susfs4ksu" ]] && {
@@ -75,6 +74,7 @@ custom_sus_map.txt
 custom_kernel_umount.txt
 custom_sus_path.txt
 custom_sus_path_loop.txt
+custom_open_redirect.txt
 "
 for file in ${files}; do
 	if [[ ! -f "${PERSISTENT_DIR}/${file}" ]]; then
@@ -113,7 +113,7 @@ rm -rf "${MODDIR}"
 cp -rp "${MODPATH}" "${MODULES_PATH}"
 
 (
-	sleep 3
+	sleep 1
 	rm -rf "${MODPATH}"
 	rm "${MODDIR}/update"
 ) & # fork in background
