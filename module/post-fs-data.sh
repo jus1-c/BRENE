@@ -221,11 +221,23 @@ fi
 # Spoof /system/etc/hosts
 if [[ "${config_spoof_hosts}" == "1" ]]; then
 	path=/system/etc/hosts
+	file_name=$(basename "${path}")
+	fake_file_path="${PERSISTENT_DIR}/fake_files/${file_name}"
+
+	[[ ! -f "${fake_file_path}" ]] && {
+		cat <<- EOF > "${fake_file_path}"
+			127.0.0.1       localhost
+			::1             ip6-localhost
+
+		EOF
+	}
+
+	brene_open_redirect "${path}" "${fake_file_path}" '3'
 
 	# add_sus_kstat_statically </path/of/file_or_directory> <ino> <dev> <nlink> <size> <atime> <atime_nsec> <mtime> <mtime_nsec> <ctime> <ctime_nsec> <blocks> <blksize>
 	# ino -> %i, dev -> %d, nlink -> %h, atime -> %X, mtime -> %Y, ctime -> %Z, size -> %s, blocks -> %b, blksize -> %B
 	# Example: stat -c %i <path>
-	${SUSFS_BIN} add_sus_kstat_statically "${path}" '100' 'default' 'default' '64' 'default' 'default' 'default' 'default' 'default' 'default' '1' '4096'
+	${SUSFS_BIN} add_sus_kstat_statically "${path}" '100' 'default' 'default' '56' 'default' 'default' 'default' 'default' 'default' 'default' '1' '4096'
 fi
 
 ## System Property Spoofing

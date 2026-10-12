@@ -66,7 +66,7 @@ ${KSU_BIN} module config set override.description "[Status: ${status} | Kernel V
 	touch "${KSU_MODULES_DIR}/susfs_manager/disable" && echo '[✅] Disabling other SuSFS module'
 }
 
-echo '[✅] Preparing brene persistent directory (/data/adb/brene)'
+echo "[✅] Preparing brene persistent directory (${PERSISTENT_DIR})"
 mkdir -p "${PERSISTENT_DIR}"
 
 files="
@@ -102,8 +102,9 @@ fi
 
 update_config_date
 
-# Remove fake_files folder
+# Reset fake_files folder
 [[ -d "${PERSISTENT_DIR}/fake_files" ]] && rm -rf "${PERSISTENT_DIR}/fake_files"
+mkdir -p "${PERSISTENT_DIR}/fake_files"
 
 # Enable WebUI without reboot
 MODDIR="/data/adb/modules/brene"
